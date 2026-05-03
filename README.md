@@ -88,6 +88,7 @@ pnpm dev
 | `modules/drucker` | Per-resident print-job inbox + token pickup | ported |
 | `modules/telefonbuch` | Phonebook (REST + CardDAV sync to Sabre/DAV) | ported |
 | `modules/unterschriftenlisten` | Circular vote sheets, hash-verifiable snapshots | ported |
+| `modules/mailcow` | Optional Mailcow integration: provisioning + Mailer + IMAP poller | ported |
 
 ## License
 

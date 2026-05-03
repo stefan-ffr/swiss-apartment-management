@@ -138,6 +138,34 @@
         "pdfRoot": "/var/lib/sam/documents/unterschriftenlisten",
         "verificationPageUrl": "https://stweg.example.ch/echtheitspruefung.html"
       }
+    },
+    "mailcow": {
+      "enabled": false,
+      "options": {
+        "apiUrl": "https://mail.example.ch",
+        "apiKeyEnv": "MAILCOW_API_KEY",
+        "defaultDomain": "example.ch",
+        "permissionKey": "mailcow",
+        "defaultQuotaMb": 1024,
+        "smtp": {
+          "host": "mail.example.ch",
+          "port": 587,
+          "secure": false,
+          "userEnv": "MAILCOW_SMTP_USER",
+          "passwordEnv": "MAILCOW_SMTP_PASSWORD",
+          "from": "noreply@example.ch"
+        },
+        "imap": {
+          "host": "mail.example.ch",
+          "port": 993,
+          "secure": true,
+          "userEnv": "MAILCOW_IMAP_USER",
+          "passwordEnv": "MAILCOW_IMAP_PASSWORD",
+          "mailbox": "INBOX",
+          "moveProcessedTo": "Processed",
+          "pollIntervalMs": 60000
+        }
+      }
     }
   },
 

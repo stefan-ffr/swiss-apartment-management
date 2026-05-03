@@ -68,6 +68,17 @@ modular `@sam/*` architecture.
 - [x] Time-series read endpoint
 - [x] Tariff CRUD
 
+## Phase 9.5 — mailcow (optional alternative mail backend) ✅
+
+- [x] Mailcow REST client (mailboxes, aliases) with bookkeeping
+- [x] `mailcow_managed_mailboxes` / `_aliases` tables so SAM never
+      touches foreign accounts
+- [x] `createMailcowMailer()` adapter for `@sam/module-verteiler`
+- [x] `startImapPoller()` adapter that wraps imapflow + mailparser
+      and feeds messages into a caller-supplied handler
+- [x] `provisionMailbox()` / `deactivateMailbox()` / `ensureAlias()`
+      helpers for cross-module orchestration
+
 ## Phase 9 — unterschriftenlisten ✅
 
 - [x] unterschriftenliste_snapshots + _rueckläufe schema
