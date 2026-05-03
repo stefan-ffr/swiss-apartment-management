@@ -98,6 +98,12 @@ importers:
       '@sam/core':
         specifier: workspace:*
         version: link:../../core
+      '@sam/module-drucker':
+        specifier: workspace:*
+        version: link:../drucker
+      '@sam/module-verteiler':
+        specifier: workspace:*
+        version: link:../verteiler
       imapflow:
         specifier: ^1.0.165
         version: 1.3.3

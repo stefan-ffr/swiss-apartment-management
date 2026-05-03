@@ -164,6 +164,19 @@
           "mailbox": "INBOX",
           "moveProcessedTo": "Processed",
           "pollIntervalMs": 60000
+        },
+        "bridges": {
+          "verteiler": {
+            "enabled": true,
+            "auditBcc": "verteiler-log@example.ch",
+            "maxRecipientsPerAlias": 1000,
+            "syncIntervalMs": 900000
+          },
+          "drucker": {
+            "enabled": true,
+            "ingestAddress": "printer-ingest@example.ch",
+            "syncIntervalMs": 900000
+          }
         }
       }
     }

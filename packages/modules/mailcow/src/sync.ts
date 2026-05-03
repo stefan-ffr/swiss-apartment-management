@@ -27,6 +27,9 @@ export interface ProvisionMailboxInput {
   /** When provided, set this password; otherwise generate a strong one
    *  and return it. */
   password?: string;
+  /** Purpose tag for system-owned mailboxes (e.g. "printer-ingest",
+   *  "verteiler-log", "bounces"). User mailboxes leave this null. */
+  purpose?: string;
 }
 
 export interface ProvisionMailboxResult {
@@ -65,15 +68,16 @@ export async function provisionMailbox(
   }
 
   await ctx.db.query(
-    `INSERT INTO mailcow_managed_mailboxes (address, name, quota_mb, user_sub, active, last_seen_at)
-     VALUES ($1, $2, $3, $4, TRUE, NOW())
+    `INSERT INTO mailcow_managed_mailboxes (address, name, quota_mb, user_sub, purpose, active, last_seen_at)
+     VALUES ($1, $2, $3, $4, $5, TRUE, NOW())
      ON CONFLICT (address) DO UPDATE
        SET name = EXCLUDED.name,
            quota_mb = EXCLUDED.quota_mb,
            user_sub = COALESCE(EXCLUDED.user_sub, mailcow_managed_mailboxes.user_sub),
+           purpose = COALESCE(EXCLUDED.purpose, mailcow_managed_mailboxes.purpose),
            active = TRUE,
            last_seen_at = NOW()`,
-    [address, input.name, quota, input.userSub ?? null],
+    [address, input.name, quota, input.userSub ?? null, input.purpose ?? null],
   );
 
   return { address, password, created };
@@ -127,6 +131,38 @@ export async function ensureAlias(
     [address, goto, purpose ?? null],
   );
   return { created };
+}
+
+/**
+ * Idempotently ensure a system-owned mailbox exists for one of the
+ * receive functions of SAM (printer-ingest, verteiler-log, bounces, …).
+ *
+ * The password is read from `<purpose-uppercased>_PASSWORD_ENV` if
+ * set, otherwise generated and returned to the caller. Hosts should
+ * persist the returned password in their secret store on first run.
+ */
+export async function ensurePurposeMailbox(
+  ctx: ModuleContext,
+  opts: MailcowOptions,
+  input: {
+    purpose: string;
+    localPart: string;
+    name?: string;
+    domain?: string;
+    quotaMb?: number;
+    /** Read existing password from this env var; otherwise generate. */
+    passwordEnv?: string;
+  },
+): Promise<ProvisionMailboxResult> {
+  const password = input.passwordEnv ? process.env[input.passwordEnv] : undefined;
+  return provisionMailbox(ctx, opts, {
+    localPart: input.localPart,
+    domain: input.domain,
+    name: input.name ?? `SAM ${input.purpose}`,
+    quotaMb: input.quotaMb,
+    password,
+    purpose: input.purpose,
+  });
 }
 
 export async function deleteAlias(

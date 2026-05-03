@@ -44,6 +44,31 @@ export const MailcowOptionsSchema = z.object({
 
   /** Default mailbox quota for newly-provisioned accounts (MB) */
   defaultQuotaMb: z.number().int().positive().default(1024),
+
+  /** Bridges are opt-in glue between mailcow and other modules. */
+  bridges: z
+    .object({
+      verteiler: z
+        .object({
+          enabled: z.boolean().default(false),
+          /** Optional address to BCC every list to (audit/log mailbox) */
+          auditBcc: z.string().email().optional(),
+          /** Cap recipients per alias (Mailcow goto field) */
+          maxRecipientsPerAlias: z.number().int().positive().default(1000),
+          /** Sync interval for the periodic re-sync cron */
+          syncIntervalMs: z.number().int().positive().default(15 * 60 * 1000),
+        })
+        .default({}),
+      drucker: z
+        .object({
+          enabled: z.boolean().default(false),
+          /** Where mail to drucker-tagged aliases lands (a real mailbox) */
+          ingestAddress: z.string().email().optional(),
+          syncIntervalMs: z.number().int().positive().default(15 * 60 * 1000),
+        })
+        .default({}),
+    })
+    .default({}),
 });
 
 export type MailcowOptions = z.infer<typeof MailcowOptionsSchema>;

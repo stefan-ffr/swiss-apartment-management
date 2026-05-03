@@ -9,6 +9,9 @@ import {
   deleteAlias,
   type ProvisionMailboxInput,
 } from './sync.js';
+import { syncVerteilerAliases, syncDruckerAliases } from './bridges/index.js';
+import { VerteilerOptionsSchema } from '@sam/module-verteiler';
+import { DruckerOptionsSchema } from '@sam/module-drucker';
 
 export function registerMailcowApi(
   app: Express,
@@ -132,6 +135,61 @@ export function registerMailcowApi(
       res.json({ ok: true });
     } catch (err) {
       ctx.logger.error('[mailcow] delete alias failed', { err: (err as Error).message });
+      res.status(500).json({ error: (err as Error).message });
+    }
+  });
+
+  // ── Bridge: verteiler → Mailcow aliases (manual trigger) ──────
+  app.post('/api/mailcow/bridges/verteiler/sync', authenticated, adminWrite, async (_req, res) => {
+    if (!opts.bridges.verteiler.enabled) {
+      return res.status(409).json({ error: 'verteiler bridge disabled in module options' });
+    }
+    const verteilerEntry = ctx.config.modules.verteiler;
+    if (!verteilerEntry?.enabled) {
+      return res.status(409).json({ error: 'verteiler module not enabled' });
+    }
+    const parsed = VerteilerOptionsSchema.safeParse(verteilerEntry.options ?? {});
+    if (!parsed.success) {
+      return res.status(409).json({ error: 'verteiler module options invalid' });
+    }
+    try {
+      const stats = await syncVerteilerAliases(ctx, opts, {
+        verteilerOptions: parsed.data,
+        auditBcc: opts.bridges.verteiler.auditBcc,
+        maxRecipientsPerAlias: opts.bridges.verteiler.maxRecipientsPerAlias,
+      });
+      res.json({ ok: true, ...stats });
+    } catch (err) {
+      ctx.logger.error('[mailcow] verteiler bridge failed', { err: (err as Error).message });
+      res.status(500).json({ error: (err as Error).message });
+    }
+  });
+
+  // ── Bridge: drucker → Mailcow aliases (manual trigger) ────────
+  app.post('/api/mailcow/bridges/drucker/sync', authenticated, adminWrite, async (_req, res) => {
+    if (!opts.bridges.drucker.enabled) {
+      return res.status(409).json({ error: 'drucker bridge disabled in module options' });
+    }
+    const ingest = opts.bridges.drucker.ingestAddress;
+    if (!ingest) {
+      return res.status(409).json({ error: 'bridges.drucker.ingestAddress is required' });
+    }
+    const druckerEntry = ctx.config.modules.drucker;
+    if (!druckerEntry?.enabled) {
+      return res.status(409).json({ error: 'drucker module not enabled' });
+    }
+    const parsed = DruckerOptionsSchema.safeParse(druckerEntry.options ?? {});
+    if (!parsed.success) {
+      return res.status(409).json({ error: 'drucker module options invalid' });
+    }
+    try {
+      const stats = await syncDruckerAliases(ctx, opts, {
+        druckerOptions: parsed.data,
+        ingestAddress: ingest,
+      });
+      res.json({ ok: true, ...stats });
+    } catch (err) {
+      ctx.logger.error('[mailcow] drucker bridge failed', { err: (err as Error).message });
       res.status(500).json({ error: (err as Error).message });
     }
   });

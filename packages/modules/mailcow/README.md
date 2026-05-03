@@ -125,11 +125,66 @@ want the provisioning API can omit both.
 ## Bookkeeping tables
 
 - `mailcow_managed_mailboxes` — addresses provisioned by SAM (so
-  deactivate never runs on foreign accounts).
-- `mailcow_managed_aliases` — same for aliases.
+  deactivate never runs on foreign accounts). Carries `purpose`
+  for system-owned mailboxes (printer-ingest, verteiler-log, …).
+- `mailcow_managed_aliases` — same for aliases. The `purpose`
+  field tags bridge-managed entries so the GC step never deletes
+  user-created aliases.
 
 Both tables carry `last_seen_at` so you can run a periodic
 reconciliation cron in the host.
+
+## Bridges
+
+When Mailcow is the mail backend, distribution lists and printer
+tags can be implemented as **native Mailcow aliases** instead of
+SAM polling IMAP and re-sending. Two opt-in bridges:
+
+### `bridges.verteiler` — verteiler → Mailcow alias
+
+For every active row in `email_verteiler`, ensure a Mailcow alias
+at `email_address` whose `goto` is the resolved member list.
+Mail to that alias is then delivered natively by Mailcow without
+SAM ever seeing it. Manual trigger:
+
+```
+POST /api/mailcow/bridges/verteiler/sync
+```
+
+The bridge runs additionally on a configurable interval
+(`bridges.verteiler.syncIntervalMs`, default 15 min). An optional
+`auditBcc` adds a BCC mailbox to every alias so the host can
+keep an immutable copy.
+
+### `bridges.drucker` — drucker tags → Mailcow alias
+
+For every drucker-tagged contact in `wohnungen_kontakte`, ensure
+an alias `<tagPrefix>+<slug>@<domain>` whose `goto` is the
+host's printer-ingest mailbox.
+
+```
+POST /api/mailcow/bridges/drucker/sync
+```
+
+Both bridges only touch records they themselves manage (purpose
+column on `mailcow_managed_aliases`); user-created Mailcow aliases
+are left alone.
+
+## Purpose mailboxes
+
+`ensurePurposeMailbox()` provisions stable system mailboxes
+(printer-ingest, verteiler-log, bounces, …) with a tag so they
+survive cron-driven reconciliation:
+
+```ts
+import { ensurePurposeMailbox } from '@sam/module-mailcow';
+
+await ensurePurposeMailbox(ctx, opts, {
+  purpose: 'printer-ingest',
+  localPart: 'printer-ingest',
+  passwordEnv: 'PRINTER_INGEST_PASSWORD',
+});
+```
 
 ## Permissions declared
 
