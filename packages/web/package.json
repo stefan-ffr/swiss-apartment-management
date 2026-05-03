@@ -1,0 +1,18 @@
+{
+  "name": "@sam/web",
+  "version": "0.0.0",
+  "private": true,
+  "license": "AGPL-3.0-or-later",
+  "type": "module",
+  "scripts": {
+    "build": "esbuild src/main.ts --bundle --outfile=dist/main.js --format=esm --target=es2022 --minify",
+    "dev":   "esbuild src/main.ts --bundle --outfile=dist/main.js --format=esm --target=es2022 --watch --servedir=public",
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "test": "echo 'no tests yet'",
+    "lint": "echo 'no linter yet'"
+  },
+  "devDependencies": {
+    "esbuild": "^0.24.0",
+    "typescript": "^5.6.0"
+  }
+}

@@ -1,0 +1,86 @@
+{
+  "$schema": "./packages/core/tenant.schema.json",
+
+  "tenant": {
+    "id": "example-stweg",
+    "name": "Beispiel STWEG-Kooperation",
+    "domain": "example.ch",
+    "locale": "de-CH",
+    "timezone": "Europe/Zurich"
+  },
+
+  "stwegen": [
+    {
+      "nr": 1,
+      "name": "STWEG 1",
+      "addresses": ["Musterstrasse 17", "Musterstrasse 18"],
+      "groups": {
+        "bewohner": "stweg1-bewohner",
+        "eigentuemer": "stweg1-eigentuemer",
+        "ausschuss": "stweg1-ausschuss"
+      },
+      "type": "wohnung"
+    },
+    {
+      "nr": 8,
+      "name": "Tiefgarage",
+      "addresses": [],
+      "groups": { "ausschuss": "stweg8-ausschuss" },
+      "type": "tiefgarage"
+    }
+  ],
+
+  "auth": {
+    "provider": "authentik",
+    "issuerUrl": "https://auth.example.ch/application/o/swiss-apartment-management/",
+    "externalUrl": "https://auth.example.ch",
+    "internalUrl": "http://authentik_server:9443",
+    "clientId": "REPLACE_ME",
+    "clientSecret": "REPLACE_ME",
+    "adminGroups": ["technik", "praesident"]
+  },
+
+  "database": {
+    "host": "postgres",
+    "port": 5432,
+    "name": "sam",
+    "user": "sam",
+    "passwordEnv": "DB_PASSWORD"
+  },
+
+  "smtp": {
+    "host": "smtp.example.ch",
+    "port": 587,
+    "user": "no-reply@example.ch",
+    "passwordEnv": "SMTP_PASSWORD",
+    "from": "Beispiel STWEG <no-reply@example.ch>"
+  },
+
+  "storage": {
+    "type": "local",
+    "path": "/var/lib/sam/documents"
+  },
+
+  "modules": {
+    "wohnungen": { "enabled": true },
+    "verteiler": {
+      "enabled": true,
+      "options": { "domain": "verteiler.example.ch" }
+    },
+    "verwaltung": { "enabled": true },
+    "waschkueche": { "enabled": false },
+    "energie": { "enabled": false },
+    "drucker": {
+      "enabled": false,
+      "options": { "tagPrefix": "drucker" }
+    },
+    "telefonbuch": { "enabled": true },
+    "unterschriftenlisten": { "enabled": true }
+  },
+
+  "branding": {
+    "logoPath": "/branding/logo.png",
+    "primaryColor": "#2563eb",
+    "favicon": "/branding/favicon.ico"
+  }
+}

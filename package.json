@@ -1,0 +1,28 @@
+{
+  "name": "swiss-apartment-management",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Modular property-management platform for Swiss STWEG / condominium associations",
+  "license": "AGPL-3.0-or-later",
+  "author": "Stefan Müller <stefan-ffr@users.noreply.github.com>",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/stefan-ffr/swiss-apartment-management.git"
+  },
+  "engines": {
+    "node": ">=20",
+    "pnpm": ">=9"
+  },
+  "packageManager": "pnpm@9.15.0",
+  "scripts": {
+    "build": "pnpm -r build",
+    "dev": "pnpm --filter @sam/core dev",
+    "lint": "pnpm -r lint",
+    "test": "pnpm -r test",
+    "typecheck": "pnpm -r typecheck",
+    "migrate": "pnpm --filter @sam/core migrate"
+  },
+  "devDependencies": {
+    "typescript": "^5.6.0"
+  }
+}

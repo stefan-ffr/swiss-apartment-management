@@ -1,0 +1,16 @@
+node_modules/
+dist/
+build/
+.turbo/
+*.log
+.DS_Store
+.env
+.env.local
+.env.*.local
+tenant.config.json
+!tenant.config.example.json
+.vscode/
+.idea/
+*.swp
+coverage/
+.nyc_output/
