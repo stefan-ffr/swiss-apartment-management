@@ -1,15 +1,50 @@
-import type { Module } from '@sam/core';
+import type { Module, ModuleContext } from '@sam/core';
+import { TelefonbuchOptionsSchema, type TelefonbuchOptions } from './options.js';
+import { registerTelefonbuchApi } from './api.js';
+import { syncContactsToCardDav } from './sync.js';
+
+function parseOpts(ctx: ModuleContext): TelefonbuchOptions {
+  const parsed = TelefonbuchOptionsSchema.safeParse(ctx.moduleOptions ?? {});
+  if (!parsed.success) {
+    throw new Error(
+      `[telefonbuch] invalid module options: ${parsed.error.issues
+        .map((i) => `${i.path.join('.')}: ${i.message}`)
+        .join('; ')}`,
+    );
+  }
+  return parsed.data;
+}
 
 const telefonbuch: Module = {
   name: 'telefonbuch',
-  displayName: 'Telefonbuch',
-  version: '0.0.0',
-  // migrationsDir: new URL('../migrations/', import.meta.url).pathname,
-  register(app, _ctx) {
-    app.get('/api/telefonbuch/_status', (_req, res) =>
-      res.json({ module: 'telefonbuch', status: 'stub' }),
-    );
+  displayName: 'Phonebook',
+  version: '0.1.0',
+  permissions: [
+    { key: 'telefonbuch', label: 'Phonebook', scopes: ['read'] },
+  ],
+  register(app, ctx) {
+    const opts = parseOpts(ctx);
+    registerTelefonbuchApi(app, ctx, opts);
+
+    app.post('/api/telefonbuch/sync', async (_req, res) => {
+      // The host's auth middleware should restrict this to admins.
+      syncContactsToCardDav(ctx, opts).catch((err) =>
+        ctx.logger.error('[telefonbuch] manual sync failed', { err: (err as Error).message }),
+      );
+      res.json({ triggered: true });
+    });
   },
+  cron: [
+    {
+      name: 'carddav-sync',
+      schedule: { everyMs: 60 * 60 * 1000 },
+      async run(ctx) {
+        const opts = parseOpts(ctx);
+        await syncContactsToCardDav(ctx, opts);
+      },
+    },
+  ],
 };
 
 export default telefonbuch;
+export { TelefonbuchOptionsSchema, type TelefonbuchOptions };
