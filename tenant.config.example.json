@@ -62,20 +62,83 @@
   },
 
   "modules": {
-    "wohnungen": { "enabled": true },
+    "wohnungen": {
+      "enabled": true,
+      "options": {
+        "permissionKey": "wohnungen",
+        "historyPermissionKey": "wohnungen-historie"
+      }
+    },
+    "verwaltung": {
+      "enabled": true,
+      "options": {
+        "permissionKey": "verwaltung",
+        "exposePublicEndpoint": true
+      }
+    },
     "verteiler": {
       "enabled": true,
-      "options": { "domain": "verteiler.example.ch" }
+      "options": {
+        "domain": "lists.example.ch",
+        "fromAddress": "noreply@example.ch",
+        "permissionKey": "verteiler",
+        "rateLimitMax": 10,
+        "rateLimitWindowMs": 600000,
+        "recipientBlocklistPatterns": [
+          "^drucker[a-z0-9]*@",
+          ".*\\.invalid$"
+        ],
+        "loopSubjectPrefixes": ["Zustellbericht:", "Auto-Reply:"],
+        "loopHeaderNames":     ["x-forwarded-by-sam"],
+        "loopHeaderValue":     "sam-verteiler"
+      }
     },
-    "verwaltung": { "enabled": true },
-    "waschkueche": { "enabled": false },
-    "energie": { "enabled": false },
     "drucker": {
       "enabled": false,
-      "options": { "tagPrefix": "drucker" }
+      "options": {
+        "tagPrefix": "drucker",
+        "domain": "print.example.ch",
+        "publicBaseUrl": "https://stweg.example.ch",
+        "permissionKey": "drucker",
+        "autoCancelAfterDays": 30
+      }
     },
-    "telefonbuch": { "enabled": true },
-    "unterschriftenlisten": { "enabled": true }
+    "waschkueche": {
+      "enabled": false,
+      "options": {
+        "permissionKey": "waschkueche",
+        "maxSlotMinutes": 240,
+        "maxAdvanceDays": 28,
+        "allowRecurring": true,
+        "costPerKwh": 0.30
+      }
+    },
+    "energie": {
+      "enabled": false,
+      "options": {
+        "readPermissionKey": "energie",
+        "ingestHeaderName": "x-sam-ingest-key",
+        "ingestSecretEnv": "SAM_ENERGIE_INGEST_KEY",
+        "defaultUnit": "kWh"
+      }
+    },
+    "telefonbuch": {
+      "enabled": true,
+      "options": {
+        "uidPrefix": "example",
+        "category": "Example Phonebook",
+        "internalEmailPatterns": ["^drucker[a-z0-9]*\\+.*"],
+        "syncIntervalMs": 3600000
+      }
+    },
+    "unterschriftenlisten": {
+      "enabled": true,
+      "options": {
+        "permissionKey": "unterschriftenlisten",
+        "pdfRoot": "/var/lib/sam/documents/unterschriftenlisten",
+        "verificationPageUrl": "https://stweg.example.ch/echtheitspruefung.html"
+      }
+    }
   },
 
   "branding": {

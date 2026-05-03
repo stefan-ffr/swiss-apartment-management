@@ -75,19 +75,19 @@ pnpm migrate
 pnpm dev
 ```
 
-## Modules planned
+## Modules
 
 | Package | Purpose | Status |
 |---|---|---|
-| `core` | Config, plugin loader, auth, HTTP server | skeleton |
-| `modules/wohnungen` | Apartments, owners/tenants, history | skeleton |
-| `modules/verteiler` | Email distribution lists | skeleton |
-| `modules/verwaltung` | External property-management firms | skeleton |
-| `modules/waschkueche` | Laundry-room booking | skeleton |
-| `modules/energie` | Energy & water meter monitoring | skeleton |
-| `modules/drucker` | Per-resident print-job inbox | skeleton |
-| `modules/telefonbuch` | PWA phonebook + CardDAV sync | skeleton |
-| `modules/unterschriftenlisten` | Circular vote / signature sheets | skeleton |
+| `core` | Config, plugin loader, auth contract, migrations, HTTP server bootstrap | ported |
+| `modules/wohnungen` | Apartments, owners/tenants, gueltig_ab + history | ported |
+| `modules/verteiler` | Mailing lists with group-resolver / mailer injection, loop detection | ported |
+| `modules/verwaltung` | External property-management firms + contacts | ported |
+| `modules/waschkueche` | Laundry-room booking, sessions, billing | ported |
+| `modules/energie` | Energy / utility metering (push-ingest, tariffs) | ported |
+| `modules/drucker` | Per-resident print-job inbox + token pickup | ported |
+| `modules/telefonbuch` | Phonebook (REST + CardDAV sync to Sabre/DAV) | ported |
+| `modules/unterschriftenlisten` | Circular vote sheets, hash-verifiable snapshots | ported |
 
 ## License
 
