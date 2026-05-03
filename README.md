@@ -65,14 +65,28 @@ export default {
 
 The core loads only modules listed in `tenant.config.json#modules`.
 
-## Quick start (once skeleton is wired)
+## Quick start
+
+```bash
+git clone https://github.com/stefan-ffr/swiss-apartment-management.git
+cd swiss-apartment-management
+cp tenant.config.example.json tenant.config.json   # edit for your STWEG
+cp .env.example .env                               # fill in secrets
+docker compose up --build -d
+docker compose logs -f sam
+```
+
+Then open <http://localhost:3000/healthz>.
+
+For Proxmox LXC and bare-metal options see
+[docs/deployment.md](./docs/deployment.md).
+
+### Local development without Docker
 
 ```bash
 pnpm install
-cp tenant.config.example.json tenant.config.json
-# edit tenant.config.json for your STWEG
-pnpm migrate
-pnpm dev
+pnpm build
+pnpm --filter @sam/example-host start
 ```
 
 ## Modules

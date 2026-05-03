@@ -12,6 +12,46 @@ importers:
         specifier: ^5.6.0
         version: 5.9.3
 
+  examples/host:
+    dependencies:
+      '@sam/core':
+        specifier: workspace:*
+        version: link:../../packages/core
+      '@sam/module-drucker':
+        specifier: workspace:*
+        version: link:../../packages/modules/drucker
+      '@sam/module-energie':
+        specifier: workspace:*
+        version: link:../../packages/modules/energie
+      '@sam/module-mailcow':
+        specifier: workspace:*
+        version: link:../../packages/modules/mailcow
+      '@sam/module-telefonbuch':
+        specifier: workspace:*
+        version: link:../../packages/modules/telefonbuch
+      '@sam/module-unterschriftenlisten':
+        specifier: workspace:*
+        version: link:../../packages/modules/unterschriftenlisten
+      '@sam/module-verteiler':
+        specifier: workspace:*
+        version: link:../../packages/modules/verteiler
+      '@sam/module-verwaltung':
+        specifier: workspace:*
+        version: link:../../packages/modules/verwaltung
+      '@sam/module-waschkueche':
+        specifier: workspace:*
+        version: link:../../packages/modules/waschkueche
+      '@sam/module-wohnungen':
+        specifier: workspace:*
+        version: link:../../packages/modules/wohnungen
+    devDependencies:
+      '@types/node':
+        specifier: ^22.0.0
+        version: 22.19.17
+      typescript:
+        specifier: ^5.6.0
+        version: 5.9.3
+
   packages/core:
     dependencies:
       express:

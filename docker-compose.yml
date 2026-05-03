@@ -1,0 +1,91 @@
+# Docker-Compose stack to run SAM end-to-end on a single host
+# (Docker Desktop, a Linux server, or inside a Proxmox LXC).
+#
+#   $ cp tenant.config.example.json tenant.config.json   # then edit
+#   $ cp .env.example .env                               # then fill in
+#   $ docker compose up --build
+#
+# Services:
+#   postgres    — datastore for SAM
+#   sam         — the example host (all modules enabled)
+#   mailpit     — capture-and-inspect SMTP server (no real outbound)
+#                 https://github.com/axllent/mailpit
+#                 SMTP   :1025  (sam pushes mail here in dev)
+#                 Web UI :8025  (open in browser to inspect)
+#   sabre       — minimal Sabre/DAV server for CardDAV testing
+#                 (used by @sam/module-telefonbuch sync)
+#                 https://hub.docker.com/r/baikal/baikal
+#
+# In production you typically replace mailpit with mailcow (run on a
+# separate host) and sabre with Nextcloud or whichever CardDAV server
+# you already use.
+
+services:
+  postgres:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-sam}
+      POSTGRES_USER: ${POSTGRES_USER:-sam}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-sam}
+    volumes:
+      - sam_postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-sam}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  mailpit:
+    image: axllent/mailpit:latest
+    restart: unless-stopped
+    ports:
+      - "8025:8025"
+    environment:
+      MP_MAX_MESSAGES: "5000"
+
+  baikal:
+    image: ckulka/baikal:nginx
+    restart: unless-stopped
+    ports:
+      - "8800:80"
+    volumes:
+      - sam_baikal_config:/var/www/baikal/config
+      - sam_baikal_data:/var/www/baikal/Specific
+
+  sam:
+    build:
+      context: .
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+      mailpit:
+        condition: service_started
+    ports:
+      - "${SAM_PORT:-3000}:3000"
+    environment:
+      TENANT_CONFIG: /etc/sam/tenant.config.json
+      PORT: "3000"
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+      # Database
+      DB_PASSWORD: ${POSTGRES_PASSWORD:-sam}
+      # SMTP (mailpit)
+      MAILCOW_SMTP_USER: ${MAILCOW_SMTP_USER:-noreply@example.test}
+      MAILCOW_SMTP_PASSWORD: ${MAILCOW_SMTP_PASSWORD:-anything}
+      # Energy ingest shared secret
+      SAM_ENERGIE_INGEST_KEY: ${SAM_ENERGIE_INGEST_KEY:-dev-only-please-change}
+      # Mailcow API key (for the optional mailcow module — leave blank
+      # if you don't run a Mailcow server in dev)
+      MAILCOW_API_KEY: ${MAILCOW_API_KEY:-}
+      # CardDAV
+      NEXTCLOUD_APP_PASSWORD: ${NEXTCLOUD_APP_PASSWORD:-}
+      # Authentik or any OIDC IdP (point at your dev IdP)
+      OIDC_CLIENT_SECRET: ${OIDC_CLIENT_SECRET:-}
+    volumes:
+      - ./tenant.config.json:/etc/sam/tenant.config.json:ro
+
+volumes:
+  sam_postgres_data:
+  sam_baikal_config:
+  sam_baikal_data:

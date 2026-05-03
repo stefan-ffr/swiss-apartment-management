@@ -1,0 +1,11 @@
+**/node_modules
+**/dist
+**/build
+**/.turbo
+**/*.tsbuildinfo
+.git
+.github
+*.log
+.env
+.env.local
+tenant.config.json
