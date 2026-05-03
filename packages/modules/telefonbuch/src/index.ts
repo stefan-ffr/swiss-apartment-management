@@ -26,8 +26,8 @@ const telefonbuch: Module = {
     const opts = parseOpts(ctx);
     registerTelefonbuchApi(app, ctx, opts);
 
-    app.post('/api/telefonbuch/sync', async (_req, res) => {
-      // The host's auth middleware should restrict this to admins.
+    const { authenticated, adminOnly } = ctx.middleware;
+    app.post('/api/telefonbuch/sync', authenticated, adminOnly, (_req, res) => {
       syncContactsToCardDav(ctx, opts).catch((err) =>
         ctx.logger.error('[telefonbuch] manual sync failed', { err: (err as Error).message }),
       );

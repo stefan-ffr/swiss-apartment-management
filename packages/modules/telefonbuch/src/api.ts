@@ -37,10 +37,9 @@ export function registerTelefonbuchApi(
   const isInternalEmail = (email: string): boolean =>
     internalRx.some((rx) => rx.test(email));
 
-  app.get('/api/telefonbuch', async (_req, res) => {
+  const { authenticated } = ctx.middleware;
+  app.get('/api/telefonbuch', authenticated, async (_req, res) => {
     try {
-      // SECURITY: route-level auth must already be wired in by the host
-      // (the bootstrap layer applies authMiddleware before module routes).
       const { rows } = await ctx.db.query<DbRow>(`
         SELECT k.name, k.email, k.telefon, k.rolle,
                w.id AS wohnung_id, w.stweg_nr AS stweg, w.bezeichnung, w.typ

@@ -11,6 +11,7 @@ export { loadTenantConfig, ConfigError } from './config.js';
 export { ModuleRegistry } from './registry.js';
 export { consoleLogger } from './logger.js';
 export { runMigrations, ensureMigrationTable } from './migrate.js';
+export { createAuthMiddleware, requirePermission, adminOnly, getUser } from './middleware.js';
 
 export interface BootstrapOptions {
   /** Modules to register (already imported). Only those enabled in

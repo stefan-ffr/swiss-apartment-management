@@ -1,4 +1,4 @@
-import type { Express } from 'express';
+import type { Express, RequestHandler } from 'express';
 import type { Pool } from 'pg';
 
 /**
@@ -40,6 +40,13 @@ export interface ModuleContext {
   db: Pool;
   logger: Logger;
   auth: AuthService;
+  /** Pre-built middleware factories. Modules use these instead of
+   *  rolling their own so the host can swap the AuthService. */
+  middleware: {
+    authenticated: RequestHandler;
+    requirePermission(key: string, scope?: 'read' | 'write'): RequestHandler;
+    adminOnly: RequestHandler;
+  };
 }
 
 export interface PermissionDescriptor {

@@ -2,6 +2,7 @@ import type { Express } from 'express';
 import type { Pool } from 'pg';
 import type { Module, ModuleContext, TenantConfig, AuthService, Logger } from './types.js';
 import { runMigrations } from './migrate.js';
+import { createAuthMiddleware, requirePermission, adminOnly } from './middleware.js';
 
 export interface RegistryOptions {
   config: TenantConfig;
@@ -38,9 +39,22 @@ export class ModuleRegistry {
   /** Run migrations + register routes + schedule cron for all enabled modules */
   async start(): Promise<void> {
     const { app, config, db, auth, logger } = this.opts;
+    const authenticated = createAuthMiddleware(auth);
+    const adminMw = adminOnly();
     for (const mod of this.enabled()) {
       const moduleOptions = config.modules[mod.name]?.options ?? {};
-      const ctx: ModuleContext = { config, moduleOptions, db, logger, auth };
+      const ctx: ModuleContext = {
+        config,
+        moduleOptions,
+        db,
+        logger,
+        auth,
+        middleware: {
+          authenticated,
+          requirePermission: (key, scope) => requirePermission(auth, key, scope),
+          adminOnly: adminMw,
+        },
+      };
 
       if (mod.migrationsDir) {
         logger.info(`[${mod.name}] running migrations`);
