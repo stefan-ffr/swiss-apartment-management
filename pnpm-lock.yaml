@@ -104,7 +104,25 @@ importers:
       '@sam/core':
         specifier: workspace:*
         version: link:../../core
+      zod:
+        specifier: ^3.23.8
+        version: 3.25.76
     devDependencies:
+      '@types/express':
+        specifier: ^4.17.21
+        version: 4.17.25
+      '@types/node':
+        specifier: ^22.0.0
+        version: 22.19.17
+      '@types/pg':
+        specifier: ^8.11.10
+        version: 8.20.0
+      express:
+        specifier: ^4.21.0
+        version: 4.22.1
+      pg:
+        specifier: ^8.13.0
+        version: 8.20.0
       typescript:
         specifier: ^5.6.0
         version: 5.9.3
