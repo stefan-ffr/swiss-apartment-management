@@ -22,6 +22,7 @@ const telefonbuch: Module = {
   permissions: [
     { key: 'telefonbuch', label: 'Phonebook', scopes: ['read'] },
   ],
+  localesDir: new URL('../locales/', import.meta.url).pathname,
   register(app, ctx) {
     const opts = parseOpts(ctx);
     registerTelefonbuchApi(app, ctx, opts);

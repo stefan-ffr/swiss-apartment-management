@@ -26,6 +26,7 @@ const energie: Module = {
     { key: 'energie', label: 'Energy meters', scopes: ['read'] },
   ],
   migrationsDir: resolve(here, '..', 'migrations'),
+  localesDir: resolve(here, '..', 'locales'),
   register(app, ctx) {
     const opts = parseOpts(ctx);
     registerEnergieApi(app, ctx, opts);

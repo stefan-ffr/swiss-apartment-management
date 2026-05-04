@@ -28,6 +28,7 @@ const wohnungen: Module = {
     { key: 'wohnungen-historie', label: 'Apartments contact history', scopes: ['read'] },
   ],
   migrationsDir: resolve(here, '..', 'migrations'),
+  localesDir: resolve(here, '..', 'locales'),
 
   register(app, ctx) {
     const opts = parseOpts(ctx);

@@ -1,0 +1,17 @@
+{
+  "errors": {
+    "unauthorized": "Anmeldung erforderlich.",
+    "forbidden": "Sie haben keine Berechtigung für diese Aktion.",
+    "missingPermission": "Fehlende Berechtigung: {permission}.",
+    "adminOnly": "Nur für Administratoren.",
+    "notFound": "Nicht gefunden.",
+    "badRequest": "Ungültige Anfrage.",
+    "badId": "Ungültige ID.",
+    "conflict": "Konflikt.",
+    "internalError": "Interner Fehler.",
+    "serviceUnavailable": "Dienst nicht verfügbar.",
+    "rateLimited": "Zu viele Anfragen. Bitte später erneut versuchen.",
+    "validationFailed": "Validierung fehlgeschlagen: {detail}."
+  },
+  "ok": "OK"
+}

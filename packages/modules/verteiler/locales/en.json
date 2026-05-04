@@ -1,0 +1,18 @@
+{
+  "errors": {
+    "badStweg": "Bad stweg.",
+    "badId": "Invalid id.",
+    "load": "Failed to load.",
+    "nameAndEmailRequired": "name and email_address are required.",
+    "emailExists": "email_address already exists.",
+    "create": "Failed to create.",
+    "update": "Failed to update.",
+    "delete": "Failed to delete.",
+    "resolve": "Failed to resolve.",
+    "notFound": "Not found.",
+    "sendBodyRequired": "subject, body and recipients[] are required.",
+    "noValidRecipients": "No valid recipients.",
+    "rateLimited": "Rate limit exceeded ({max} per window).",
+    "logRead": "Failed to read log."
+  }
+}

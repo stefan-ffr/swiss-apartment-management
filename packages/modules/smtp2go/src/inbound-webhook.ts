@@ -22,6 +22,7 @@ import { createHmac, timingSafeEqual } from 'node:crypto';
 import type { Express, Request, Response } from 'express';
 import express from 'express';
 import type { ModuleContext } from '@sam/core';
+import { getLocale } from '@sam/core';
 import type { Smtp2goOptions } from './options.js';
 import type { InboundHandler, InboundMessage } from './types.js';
 
@@ -54,6 +55,8 @@ export function registerWebhookEndpoint(
 ): void {
   if (!opts.webhook) return;
   const wh = opts.webhook;
+  const t = (req: Request, key: string, params?: Record<string, unknown>): string =>
+    ctx.translator.t(key, getLocale(req), params);
 
   // Capture the raw body BEFORE express.json() runs so we can compute
   // HMAC over the exact bytes the sender signed.
@@ -63,29 +66,29 @@ export function registerWebhookEndpoint(
     async (req: Request, res: Response) => {
       const secret = process.env[wh.secretEnv];
       if (!secret) {
-        res.status(503).json({ error: `Webhook disabled: env ${wh.secretEnv} not set` });
+        res.status(503).json({ error: t(req, 'errors.webhookDisabled', { env: wh.secretEnv }) });
         return;
       }
       const provided = req.header(wh.signatureHeader);
-      if (!provided) return res.status(401).json({ error: 'Missing signature' });
+      if (!provided) return res.status(401).json({ error: t(req, 'errors.missingSignature') });
 
       const raw = (req.body as Buffer).toString('utf8');
       const expected = createHmac(wh.algorithm, secret).update(raw).digest('hex');
       if (!constantTimeEqual(provided, expected)) {
-        return res.status(401).json({ error: 'Bad signature' });
+        return res.status(401).json({ error: t(req, 'errors.badSignature') });
       }
 
       let body: IncomingWebhookBody;
       try {
         body = JSON.parse(raw) as IncomingWebhookBody;
       } catch {
-        return res.status(400).json({ error: 'Bad JSON' });
+        return res.status(400).json({ error: t(req, 'errors.badJson') });
       }
       const messageId = body.messageId?.trim();
       const recipient = body.recipient?.trim().toLowerCase();
       const fromEmail = body.from?.email?.trim().toLowerCase();
       if (!messageId || !recipient || !fromEmail) {
-        return res.status(400).json({ error: 'messageId/recipient/from.email required' });
+        return res.status(400).json({ error: t(req, 'errors.envelopeFieldsRequired') });
       }
 
       // Dedup
@@ -111,7 +114,7 @@ export function registerWebhookEndpoint(
       try {
         if (!inboundHandler) {
           ctx.logger.warn('[smtp2go.webhook] no handler registered, dropping');
-          return res.status(503).json({ error: 'No inbound handler wired' });
+          return res.status(503).json({ error: t(req, 'errors.noHandler') });
         }
         await inboundHandler(msg);
         await ctx.db.query(
@@ -122,7 +125,7 @@ export function registerWebhookEndpoint(
         res.json({ ok: true });
       } catch (err) {
         ctx.logger.error('[smtp2go.webhook] handler failed', { err: (err as Error).message });
-        res.status(500).json({ error: 'Handler failed' });
+        res.status(500).json({ error: t(req, 'errors.handlerFailed') });
       }
     },
   );

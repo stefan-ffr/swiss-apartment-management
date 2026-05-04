@@ -1,0 +1,17 @@
+{
+  "errors": {
+    "internal": "Failed.",
+    "nameRequired": "name is required.",
+    "badId": "Invalid id.",
+    "notFound": "Not found.",
+    "notFoundOrYours": "Not found or not yours.",
+    "authRequired": "Authentication required.",
+    "reservationFieldsRequired": "room_id, start_time and end_time are required.",
+    "invalidDate": "Invalid date format (ISO 8601 expected).",
+    "endBeforeStart": "end_time must be after start_time.",
+    "maxSlotMinutes": "Maximum slot duration is {minutes} minutes.",
+    "maxAdvanceDays": "Maximum {days} days in advance.",
+    "recurringDisabled": "Recurring reservations are disabled.",
+    "slotTaken": "Slot already taken."
+  }
+}

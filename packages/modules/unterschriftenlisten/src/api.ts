@@ -1,5 +1,6 @@
 import type { Express, Request, Response } from 'express';
 import type { ModuleContext } from '@sam/core';
+import { getLocale } from '@sam/core';
 import { resolve as resolvePath, join as joinPath } from 'node:path';
 import { createReadStream, statSync } from 'node:fs';
 import type { UnterschriftenlistenOptions } from './options.js';
@@ -20,17 +21,19 @@ export function registerUnterschriftenlistenApi(
   const { authenticated, requirePermission } = ctx.middleware;
   const read = requirePermission(opts.permissionKey, 'read');
   const write = requirePermission(opts.permissionKey, 'write');
+  const t = (req: Request, key: string, params?: Record<string, unknown>): string =>
+    ctx.translator.t(key, getLocale(req), params);
 
   // ── Public verification (JSON) ─────────────────────────────────
   app.get('/api/unterschriftenliste/verify-json', async (req, res) => {
     const claimed = String(req.query.hash ?? '');
-    if (!HASH_RX.test(claimed)) return res.status(400).json({ error: 'Bad hash' });
+    if (!HASH_RX.test(claimed)) return res.status(400).json({ error: t(req, 'errors.badHash') });
     try {
       const r = await ctx.db.query<SnapshotRow>(
         'SELECT * FROM unterschriftenliste_snapshots WHERE hash = $1',
         [claimed],
       );
-      if (r.rowCount === 0) return res.status(404).json({ error: 'No such snapshot' });
+      if (r.rowCount === 0) return res.status(404).json({ error: t(req, 'errors.noSuchSnapshot') });
       const s = r.rows[0]!;
       ctx.db.query(
         'UPDATE unterschriftenliste_snapshots SET download_count = download_count + 1 WHERE hash = $1',
@@ -47,30 +50,30 @@ export function registerUnterschriftenlistenApi(
       });
     } catch (err) {
       ctx.logger.error('[unterschriftenlisten] verify failed', { err: (err as Error).message });
-      res.status(500).json({ error: 'Failed' });
+      res.status(500).json({ error: t(req, 'errors.internal') });
     }
   });
 
   // ── Public PDF download (hash is the auth token) ───────────────
   app.get('/api/unterschriftenliste/snapshot/:hash.pdf', async (req, res) => {
     const hash = req.params.hash ?? '';
-    if (!HASH_RX.test(hash)) return res.status(400).json({ error: 'Bad hash' });
-    if (!opts.pdfRoot) return res.status(404).json({ error: 'PDF storage not configured' });
+    if (!HASH_RX.test(hash)) return res.status(400).json({ error: t(req, 'errors.badHash') });
+    if (!opts.pdfRoot) return res.status(404).json({ error: t(req, 'errors.pdfStorageNotConfigured') });
     try {
       const r = await ctx.db.query<SnapshotRow>(
         'SELECT pdf_path, datum, stweg_nr FROM unterschriftenliste_snapshots WHERE hash = $1',
         [hash],
       );
       const s = r.rows[0];
-      if (!s || !s.pdf_path) return res.status(404).json({ error: 'PDF not found' });
+      if (!s || !s.pdf_path) return res.status(404).json({ error: t(req, 'errors.pdfNotFound') });
       const fullPath = resolvePath(joinPath(opts.pdfRoot, s.pdf_path));
       if (!fullPath.startsWith(resolvePath(opts.pdfRoot))) {
-        return res.status(400).json({ error: 'Bad path' });
+        return res.status(400).json({ error: t(req, 'errors.badPath') });
       }
       try {
         statSync(fullPath);
       } catch {
-        return res.status(404).json({ error: 'PDF file missing on disk' });
+        return res.status(404).json({ error: t(req, 'errors.pdfMissingOnDisk') });
       }
       const inline = req.query.preview === '1';
       const filename = `unterschriftenliste-stweg${s.stweg_nr}-${String(s.datum).slice(0, 10)}-${hash}.pdf`;
@@ -86,12 +89,12 @@ export function registerUnterschriftenlistenApi(
       createReadStream(fullPath).pipe(res);
     } catch (err) {
       ctx.logger.error('[unterschriftenlisten] pdf failed', { err: (err as Error).message });
-      res.status(500).json({ error: 'Failed' });
+      res.status(500).json({ error: t(req, 'errors.internal') });
     }
   });
 
   // ── Admin: list snapshots ──────────────────────────────────────
-  app.get('/api/unterschriftenliste/history', authenticated, read, async (_req, res) => {
+  app.get('/api/unterschriftenliste/history', authenticated, read, async (req, res) => {
     try {
       const r = await ctx.db.query<SnapshotRow>(
         `SELECT hash, stweg_nr, datum, anlass_titel, generated_by, download_count, generated_at
@@ -102,7 +105,7 @@ export function registerUnterschriftenlistenApi(
       res.json({ snapshots: r.rows });
     } catch (err) {
       ctx.logger.error('[unterschriftenlisten] history failed', { err: (err as Error).message });
-      res.status(500).json({ error: 'Failed' });
+      res.status(500).json({ error: t(req, 'errors.internal') });
     }
   });
 
@@ -110,9 +113,9 @@ export function registerUnterschriftenlistenApi(
   app.post('/api/unterschriftenliste', authenticated, write, async (req, res) => {
     const b = req.body as SnapshotInput;
     if (!b.hash || !b.stweg_nr || !b.datum || !b.anlass_titel || b.snapshot_data === undefined) {
-      return res.status(400).json({ error: 'hash + stweg_nr + datum + anlass_titel + snapshot_data required' });
+      return res.status(400).json({ error: t(req, 'errors.snapshotFieldsRequired') });
     }
-    if (!HASH_RX.test(b.hash)) return res.status(400).json({ error: 'Bad hash' });
+    if (!HASH_RX.test(b.hash)) return res.status(400).json({ error: t(req, 'errors.badHash') });
     const client = await ctx.db.connect();
     try {
       await client.query('BEGIN');
@@ -159,7 +162,7 @@ export function registerUnterschriftenlistenApi(
     } catch (err) {
       await client.query('ROLLBACK');
       ctx.logger.error('[unterschriftenlisten] create failed', { err: (err as Error).message });
-      res.status(500).json({ error: 'Failed' });
+      res.status(500).json({ error: t(req, 'errors.internal') });
     } finally {
       client.release();
     }
@@ -168,14 +171,14 @@ export function registerUnterschriftenlistenApi(
   // ── Rücklauf-Checkliste read ───────────────────────────────────
   app.get('/api/unterschriftenliste/:hash/rueckläufe', authenticated, read, async (req, res) => {
     const hash = req.params.hash ?? '';
-    if (!HASH_RX.test(hash)) return res.status(400).json({ error: 'Bad hash' });
+    if (!HASH_RX.test(hash)) return res.status(400).json({ error: t(req, 'errors.badHash') });
     try {
       const snap = await ctx.db.query<SnapshotRow>(
         `SELECT hash, stweg_nr, datum, anlass_titel, generated_at
            FROM unterschriftenliste_snapshots WHERE hash = $1`,
         [hash],
       );
-      if (snap.rowCount === 0) return res.status(404).json({ error: 'Not found' });
+      if (snap.rowCount === 0) return res.status(404).json({ error: t(req, 'errors.notFound') });
       const list = await ctx.db.query<RuecklaufRow>(
         `SELECT * FROM unterschriftenliste_rueckläufe
           WHERE snapshot_hash = $1 ORDER BY brief_idx`,
@@ -184,7 +187,7 @@ export function registerUnterschriftenlistenApi(
       res.json({ snapshot: snap.rows[0], briefe: list.rows });
     } catch (err) {
       ctx.logger.error('[unterschriftenlisten] rueckläufe-list failed', { err: (err as Error).message });
-      res.status(500).json({ error: 'Failed' });
+      res.status(500).json({ error: t(req, 'errors.internal') });
     }
   });
 
@@ -192,11 +195,11 @@ export function registerUnterschriftenlistenApi(
   app.put('/api/unterschriftenliste/:hash/rueckläufe/:idx', authenticated, write, async (req, res) => {
     const hash = req.params.hash ?? '';
     const idx = parseId(req.params.idx);
-    if (!HASH_RX.test(hash) || idx === null) return res.status(400).json({ error: 'Bad params' });
+    if (!HASH_RX.test(hash) || idx === null) return res.status(400).json({ error: t(req, 'errors.badParams') });
     const b = req.body as RuecklaufUpdate;
     const validVotes: Vote[] = ['ja', 'nein', 'enthaltung'];
     if (b.vote !== undefined && b.vote !== null && !validVotes.includes(b.vote)) {
-      return res.status(400).json({ error: 'Bad vote' });
+      return res.status(400).json({ error: t(req, 'errors.badVote') });
     }
     try {
       const r = await ctx.db.query<RuecklaufRow>(
@@ -209,11 +212,11 @@ export function registerUnterschriftenlistenApi(
           RETURNING *`,
         [b.retourniert_am ?? null, b.vote ?? null, b.notiz ?? null, hash, idx],
       );
-      if (r.rowCount === 0) return res.status(404).json({ error: 'Not found' });
+      if (r.rowCount === 0) return res.status(404).json({ error: t(req, 'errors.notFound') });
       res.json(r.rows[0]);
     } catch (err) {
       ctx.logger.error('[unterschriftenlisten] rueckläufe-update failed', { err: (err as Error).message });
-      res.status(500).json({ error: 'Failed' });
+      res.status(500).json({ error: t(req, 'errors.internal') });
     }
   });
 }

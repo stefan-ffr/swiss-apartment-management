@@ -1,0 +1,17 @@
+{
+  "errors": {
+    "unknownStweg": "Unknown STWEG.",
+    "badParams": "Bad parameters.",
+    "loadList": "Failed to load apartments.",
+    "loadOne": "Failed to load apartment.",
+    "loadHistory": "Failed to load history.",
+    "archiveContact": "Failed to archive contact.",
+    "kontaktNotFound": "Contact not found or already archived.",
+    "bezeichnungRequired": "Apartment label (bezeichnung) is required.",
+    "bezeichnungConflict": "An apartment with this label already exists.",
+    "create": "Failed to create apartment.",
+    "update": "Failed to update apartment.",
+    "delete": "Failed to delete apartment.",
+    "notFound": "Apartment not found."
+  }
+}

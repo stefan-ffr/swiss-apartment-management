@@ -1,0 +1,15 @@
+{
+  "errors": {
+    "load": "Failed to load.",
+    "badId": "Invalid id.",
+    "notFound": "Not found.",
+    "firmaNameRequired": "firma_name is required.",
+    "nameRequired": "name is required.",
+    "create": "Failed to create.",
+    "update": "Failed to update.",
+    "delete": "Failed to delete.",
+    "addContact": "Failed to add contact.",
+    "updateContact": "Failed to update contact.",
+    "deleteContact": "Failed to delete contact."
+  }
+}

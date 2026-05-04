@@ -26,6 +26,7 @@ const waschkueche: Module = {
     { key: 'waschkueche', label: 'Laundry-room booking', scopes: ['read', 'write'] },
   ],
   migrationsDir: resolve(here, '..', 'migrations'),
+  localesDir: resolve(here, '..', 'locales'),
   register(app, ctx) {
     const opts = parseOpts(ctx);
     registerWaschkuecheApi(app, ctx, opts);

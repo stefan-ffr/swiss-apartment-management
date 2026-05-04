@@ -1,8 +1,11 @@
 import type { Express } from 'express';
 import type { Pool } from 'pg';
+import { resolve as resolvePath } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import type { Module, ModuleContext, TenantConfig, AuthService, Logger } from './types.js';
 import { runMigrations } from './migrate.js';
-import { createAuthMiddleware, requirePermission, adminOnly } from './middleware.js';
+import { createAuthMiddleware, requirePermission, adminOnly, localeMiddleware } from './middleware.js';
+import { IntlTranslator, loadLocaleDir, type Locale } from './i18n.js';
 
 export interface RegistryOptions {
   config: TenantConfig;
@@ -39,8 +42,44 @@ export class ModuleRegistry {
   /** Run migrations + register routes + schedule cron for all enabled modules */
   async start(): Promise<void> {
     const { app, config, db, auth, logger } = this.opts;
-    const authenticated = createAuthMiddleware(auth);
-    const adminMw = adminOnly();
+
+    // ── Build the global translator (one IntlTranslator, many scoped views) ──
+    const tenantLocale = config.tenant.locale ?? 'en';
+    const translator = new IntlTranslator({ tenantDefaultLocale: tenantLocale });
+
+    // Always load core's own `common.*` namespace bundle if present.
+    const coreHere = fileURLToPath(new URL('.', import.meta.url));
+    const coreLocaleDir = resolvePath(coreHere, '..', 'locales');
+    const coreBundle = await loadLocaleDir(coreLocaleDir);
+    if (Object.keys(coreBundle).length > 0) {
+      translator.addBundle('common', coreBundle);
+    }
+
+    // Per-module bundles
+    for (const mod of this.enabled()) {
+      if (!mod.localesDir) continue;
+      const bundle = await loadLocaleDir(mod.localesDir);
+      if (Object.keys(bundle).length === 0) {
+        logger.warn(`[${mod.name}] localesDir set but no locale files found`);
+        continue;
+      }
+      translator.addBundle(mod.name, bundle);
+    }
+    const supported = translator.availableLocales();
+    if (supported.length === 0) supported.push('en');
+    logger.info(`[i18n] loaded locales: ${supported.join(', ')} (default: ${tenantLocale})`);
+
+    const authenticated = createAuthMiddleware(auth, translator);
+    const adminMw = adminOnly(translator);
+    const localeMw = localeMiddleware({
+      supportedLocales: supported,
+      tenantDefaultLocale: tenantLocale,
+    });
+
+    // Apply locale globally so EVERY route gets req.locale, even
+    // unauthenticated ones (e.g. /healthz, public verteiler endpoint).
+    app.use(localeMw);
+
     for (const mod of this.enabled()) {
       const moduleOptions = config.modules[mod.name]?.options ?? {};
       const ctx: ModuleContext = {
@@ -49,10 +88,12 @@ export class ModuleRegistry {
         db,
         logger,
         auth,
+        translator: translator.scoped(mod.name),
         middleware: {
           authenticated,
-          requirePermission: (key, scope) => requirePermission(auth, key, scope),
+          requirePermission: (key, scope) => requirePermission(auth, key, scope, translator),
           adminOnly: adminMw,
+          locale: localeMw,
         },
       };
 

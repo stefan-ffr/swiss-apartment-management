@@ -28,6 +28,7 @@ const smtp2go: Module = {
     { key: 'smtp2go', label: 'SMTP2GO administration', scopes: ['read', 'write'] },
   ],
   migrationsDir: resolve(here, '..', 'migrations'),
+  localesDir: resolve(here, '..', 'locales'),
   register(app, ctx) {
     const opts = parseOpts(ctx);
     registerSmtp2goApi(app, ctx, opts);

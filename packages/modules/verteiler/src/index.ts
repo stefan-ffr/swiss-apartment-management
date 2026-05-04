@@ -26,6 +26,7 @@ const verteiler: Module = {
     { key: 'verteiler', label: 'Mailing lists', scopes: ['read', 'write'] },
   ],
   migrationsDir: resolve(here, '..', 'migrations'),
+  localesDir: resolve(here, '..', 'locales'),
   register(app, ctx) {
     const opts = parseOpts(ctx);
     registerVerteilerApi(app, ctx, opts);

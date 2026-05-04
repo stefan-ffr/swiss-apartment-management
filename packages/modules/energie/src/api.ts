@@ -1,5 +1,6 @@
 import type { Express, Request, Response, NextFunction } from 'express';
 import type { ModuleContext } from '@sam/core';
+import { getLocale } from '@sam/core';
 import type { EnergieOptions } from './options.js';
 import type { MeterRow, ReadingRow, TariffRow, ReadingInput } from './types.js';
 
@@ -10,24 +11,26 @@ export function registerEnergieApi(
 ): void {
   const { authenticated, requirePermission, adminOnly } = ctx.middleware;
   const read = requirePermission(opts.readPermissionKey, 'read');
+  const t = (req: Request, key: string, params?: Record<string, unknown>): string =>
+    ctx.translator.t(key, getLocale(req), params);
 
   // Shared-secret middleware for the ingest endpoint
   const ingestKey = process.env[opts.ingestSecretEnv];
   const ingestAuth = (req: Request, res: Response, next: NextFunction): void => {
     if (!ingestKey) {
-      res.status(503).json({ error: `Ingest disabled: env ${opts.ingestSecretEnv} not set` });
+      res.status(503).json({ error: t(req, 'errors.ingestDisabled', { env: opts.ingestSecretEnv }) });
       return;
     }
     const provided = req.header(opts.ingestHeaderName);
     if (provided !== ingestKey) {
-      res.status(401).json({ error: 'Bad ingest key' });
+      res.status(401).json({ error: t(req, 'errors.badIngestKey') });
       return;
     }
     next();
   };
 
   // ── Meters ─────────────────────────────────────────────────────
-  app.get('/api/energie/meters', authenticated, read, async (_req, res) => {
+  app.get('/api/energie/meters', authenticated, read, async (req, res) => {
     try {
       const r = await ctx.db.query<MeterRow>(
         `SELECT * FROM energy_meters WHERE active = TRUE ORDER BY label`,
@@ -35,13 +38,13 @@ export function registerEnergieApi(
       res.json({ meters: r.rows });
     } catch (err) {
       ctx.logger.error('[energie] meters list failed', { err: (err as Error).message });
-      res.status(500).json({ error: 'Failed' });
+      res.status(500).json({ error: t(req, 'errors.internal') });
     }
   });
 
   app.post('/api/energie/meters', authenticated, adminOnly, async (req, res) => {
     const b = req.body as Partial<MeterRow>;
-    if (!b.id || !b.label) return res.status(400).json({ error: 'id + label required' });
+    if (!b.id || !b.label) return res.status(400).json({ error: t(req, 'errors.meterFieldsRequired') });
     try {
       const r = await ctx.db.query<MeterRow>(
         `INSERT INTO energy_meters (id, label, unit, stweg_nr, wohnung_id, type, tariff_id, cumulative, active, notes)
@@ -62,9 +65,9 @@ export function registerEnergieApi(
       res.status(201).json(r.rows[0]);
     } catch (err) {
       const e = err as Error & { code?: string };
-      if (e.code === '23505') return res.status(409).json({ error: 'Meter id already exists' });
+      if (e.code === '23505') return res.status(409).json({ error: t(req, 'errors.meterExists') });
       ctx.logger.error('[energie] create-meter failed', { err: e.message });
-      res.status(500).json({ error: 'Failed' });
+      res.status(500).json({ error: t(req, 'errors.internal') });
     }
   });
 
@@ -89,7 +92,7 @@ export function registerEnergieApi(
       res.json({ ok: true, inserted });
     } catch (err) {
       ctx.logger.error('[energie] ingest failed', { err: (err as Error).message });
-      res.status(500).json({ error: 'Failed' });
+      res.status(500).json({ error: t(req, 'errors.internal') });
     }
   });
 
@@ -110,25 +113,25 @@ export function registerEnergieApi(
       res.json({ readings: r.rows });
     } catch (err) {
       ctx.logger.error('[energie] readings read failed', { err: (err as Error).message });
-      res.status(500).json({ error: 'Failed' });
+      res.status(500).json({ error: t(req, 'errors.internal') });
     }
   });
 
   // ── Tariffs ────────────────────────────────────────────────────
-  app.get('/api/energie/tariffs', authenticated, read, async (_req, res) => {
+  app.get('/api/energie/tariffs', authenticated, read, async (req, res) => {
     try {
       const r = await ctx.db.query<TariffRow>(`SELECT * FROM energy_tariffs ORDER BY valid_from DESC`);
       res.json({ tariffs: r.rows });
     } catch (err) {
       ctx.logger.error('[energie] tariffs list failed', { err: (err as Error).message });
-      res.status(500).json({ error: 'Failed' });
+      res.status(500).json({ error: t(req, 'errors.internal') });
     }
   });
 
   app.post('/api/energie/tariffs', authenticated, adminOnly, async (req, res) => {
     const b = req.body as Partial<TariffRow>;
     if (!b.id || !b.label || !b.chf_per_unit || !b.valid_from) {
-      return res.status(400).json({ error: 'id + label + chf_per_unit + valid_from required' });
+      return res.status(400).json({ error: t(req, 'errors.tariffFieldsRequired') });
     }
     try {
       const r = await ctx.db.query<TariffRow>(
@@ -139,9 +142,9 @@ export function registerEnergieApi(
       res.status(201).json(r.rows[0]);
     } catch (err) {
       const e = err as Error & { code?: string };
-      if (e.code === '23505') return res.status(409).json({ error: 'Tariff id exists' });
+      if (e.code === '23505') return res.status(409).json({ error: t(req, 'errors.tariffExists') });
       ctx.logger.error('[energie] tariff create failed', { err: e.message });
-      res.status(500).json({ error: 'Failed' });
+      res.status(500).json({ error: t(req, 'errors.internal') });
     }
   });
 }

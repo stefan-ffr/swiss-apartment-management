@@ -1,0 +1,17 @@
+{
+  "errors": {
+    "internal": "Fehler.",
+    "nameRequired": "Name ist erforderlich.",
+    "badId": "Ungültige ID.",
+    "notFound": "Nicht gefunden.",
+    "notFoundOrYours": "Nicht gefunden oder nicht von Ihnen.",
+    "authRequired": "Anmeldung erforderlich.",
+    "reservationFieldsRequired": "room_id, start_time und end_time sind erforderlich.",
+    "invalidDate": "Ungültiges Datumsformat (ISO 8601 erwartet).",
+    "endBeforeStart": "end_time muss nach start_time liegen.",
+    "maxSlotMinutes": "Maximale Slot-Dauer: {minutes} Minuten.",
+    "maxAdvanceDays": "Maximal {days} Tage im Voraus.",
+    "recurringDisabled": "Wiederkehrende Reservationen sind deaktiviert.",
+    "slotTaken": "Slot bereits belegt."
+  }
+}

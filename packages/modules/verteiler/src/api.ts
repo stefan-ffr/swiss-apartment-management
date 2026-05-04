@@ -1,6 +1,6 @@
 import type { Express, Request } from 'express';
 import type { ModuleContext } from '@sam/core';
-import { getUser } from '@sam/core';
+import { getUser, getLocale } from '@sam/core';
 import type { VerteilerOptions } from './options.js';
 import type { VerteilerRow, VerteilerInput } from './types.js';
 import { resolveRecipients } from './resolve.js';
@@ -22,11 +22,13 @@ export function registerVerteilerApi(
 ): void {
   const { authenticated, requirePermission, adminOnly } = ctx.middleware;
   const sendGate = requirePermission(opts.permissionKey, 'write');
+  const t = (req: Request, key: string, params?: Record<string, unknown>): string =>
+    ctx.translator.t(key, getLocale(req), params);
 
   // ── List for STWEG (auth required) ─────────────────────────────
   app.get('/api/verteiler/by-stweg/:stweg', authenticated, async (req, res) => {
     const stweg = Number.parseInt(req.params.stweg ?? '', 10);
-    if (!Number.isFinite(stweg)) return res.status(400).json({ error: 'Bad stweg' });
+    if (!Number.isFinite(stweg)) return res.status(400).json({ error: t(req, 'errors.badStweg') });
     try {
       const r = await ctx.db.query(
         `SELECT id, name, email_address, stweg_nr, description
@@ -38,12 +40,12 @@ export function registerVerteilerApi(
       res.json(r.rows);
     } catch (err) {
       ctx.logger.error('[verteiler] list failed', { err: (err as Error).message });
-      res.status(500).json({ error: 'Failed to load' });
+      res.status(500).json({ error: t(req, 'errors.load') });
     }
   });
 
   // ── Full CRUD (admin) ──────────────────────────────────────────
-  app.get('/api/verteiler', authenticated, adminOnly, async (_req, res) => {
+  app.get('/api/verteiler', authenticated, adminOnly, async (req, res) => {
     try {
       const r = await ctx.db.query<VerteilerRow>(
         `SELECT * FROM email_verteiler ORDER BY stweg_nr NULLS FIRST, name`,
@@ -51,13 +53,13 @@ export function registerVerteilerApi(
       res.json({ verteiler: r.rows });
     } catch (err) {
       ctx.logger.error('[verteiler] list-admin failed', { err: (err as Error).message });
-      res.status(500).json({ error: 'Failed to load' });
+      res.status(500).json({ error: t(req, 'errors.load') });
     }
   });
 
   app.post('/api/verteiler', authenticated, adminOnly, async (req, res) => {
     const b = (req.body ?? {}) as VerteilerInput;
-    if (!b.name || !b.email_address) return res.status(400).json({ error: 'name + email_address required' });
+    if (!b.name || !b.email_address) return res.status(400).json({ error: t(req, 'errors.nameAndEmailRequired') });
     try {
       const r = await ctx.db.query<VerteilerRow>(
         `INSERT INTO email_verteiler
@@ -77,17 +79,17 @@ export function registerVerteilerApi(
       res.status(201).json(r.rows[0]);
     } catch (err) {
       const e = err as Error & { code?: string };
-      if (e.code === '23505') return res.status(409).json({ error: 'email_address already exists' });
+      if (e.code === '23505') return res.status(409).json({ error: t(req, 'errors.emailExists') });
       ctx.logger.error('[verteiler] create failed', { err: e.message });
-      res.status(500).json({ error: 'Failed to create' });
+      res.status(500).json({ error: t(req, 'errors.create') });
     }
   });
 
   app.put('/api/verteiler/:id', authenticated, adminOnly, async (req, res) => {
     const id = parseId(req.params.id);
-    if (id === null) return res.status(400).json({ error: 'Bad id' });
+    if (id === null) return res.status(400).json({ error: t(req, 'errors.badId') });
     const b = (req.body ?? {}) as VerteilerInput;
-    if (!b.name || !b.email_address) return res.status(400).json({ error: 'name + email_address required' });
+    if (!b.name || !b.email_address) return res.status(400).json({ error: t(req, 'errors.nameAndEmailRequired') });
     try {
       const r = await ctx.db.query<VerteilerRow>(
         `UPDATE email_verteiler SET
@@ -105,40 +107,40 @@ export function registerVerteilerApi(
           id,
         ],
       );
-      if (r.rowCount === 0) return res.status(404).json({ error: 'Not found' });
+      if (r.rowCount === 0) return res.status(404).json({ error: t(req, 'errors.notFound') });
       res.json(r.rows[0]);
     } catch (err) {
       ctx.logger.error('[verteiler] update failed', { err: (err as Error).message });
-      res.status(500).json({ error: 'Failed to update' });
+      res.status(500).json({ error: t(req, 'errors.update') });
     }
   });
 
   app.delete('/api/verteiler/:id', authenticated, adminOnly, async (req, res) => {
     const id = parseId(req.params.id);
-    if (id === null) return res.status(400).json({ error: 'Bad id' });
+    if (id === null) return res.status(400).json({ error: t(req, 'errors.badId') });
     try {
       const r = await ctx.db.query('DELETE FROM email_verteiler WHERE id = $1 RETURNING id', [id]);
-      if (r.rowCount === 0) return res.status(404).json({ error: 'Not found' });
+      if (r.rowCount === 0) return res.status(404).json({ error: t(req, 'errors.notFound') });
       res.json({ ok: true });
     } catch (err) {
       ctx.logger.error('[verteiler] delete failed', { err: (err as Error).message });
-      res.status(500).json({ error: 'Failed to delete' });
+      res.status(500).json({ error: t(req, 'errors.delete') });
     }
   });
 
   // ── Resolve (preview the recipients of a verteiler) ────────────
   app.get('/api/verteiler/:id/resolve', authenticated, sendGate, async (req, res) => {
     const id = parseId(req.params.id);
-    if (id === null) return res.status(400).json({ error: 'Bad id' });
+    if (id === null) return res.status(400).json({ error: t(req, 'errors.badId') });
     try {
       const r = await ctx.db.query<VerteilerRow>('SELECT * FROM email_verteiler WHERE id = $1', [id]);
       const v = r.rows[0];
-      if (!v) return res.status(404).json({ error: 'Not found' });
+      if (!v) return res.status(404).json({ error: t(req, 'errors.notFound') });
       const recipients = await resolveRecipients(v, opts);
       res.json({ recipients, count: recipients.length });
     } catch (err) {
       ctx.logger.error('[verteiler] resolve failed', { err: (err as Error).message });
-      res.status(500).json({ error: 'Failed to resolve' });
+      res.status(500).json({ error: t(req, 'errors.resolve') });
     }
   });
 
@@ -149,7 +151,7 @@ export function registerVerteilerApi(
     const now = Date.now();
     const log = (sendLog.get(uid) ?? []).filter((t) => now - t < opts.rateLimitWindowMs);
     if (log.length >= opts.rateLimitMax) {
-      return res.status(429).json({ error: `Rate limit exceeded (${opts.rateLimitMax} per window)` });
+      return res.status(429).json({ error: t(req, 'errors.rateLimited', { max: opts.rateLimitMax }) });
     }
     log.push(now);
     sendLog.set(uid, log);
@@ -161,10 +163,10 @@ export function registerVerteilerApi(
       recipients?: string[];
     };
     if (!subject || !body || !Array.isArray(recipients) || recipients.length === 0) {
-      return res.status(400).json({ error: 'subject + body + recipients[] required' });
+      return res.status(400).json({ error: t(req, 'errors.sendBodyRequired') });
     }
     const valid = recipients.filter((r) => typeof r === 'string' && EMAIL_RX.test(r));
-    if (valid.length === 0) return res.status(400).json({ error: 'No valid recipients' });
+    if (valid.length === 0) return res.status(400).json({ error: t(req, 'errors.noValidRecipients') });
 
     const mailer = requireMailer();
     let sent = 0;
@@ -206,7 +208,7 @@ export function registerVerteilerApi(
       res.json({ log: r.rows });
     } catch (err) {
       ctx.logger.error('[verteiler] log read failed', { err: (err as Error).message });
-      res.status(500).json({ error: 'Failed to read log' });
+      res.status(500).json({ error: t(req, 'errors.logRead') });
     }
   });
 }

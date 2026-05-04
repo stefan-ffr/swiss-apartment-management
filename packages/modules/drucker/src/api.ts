@@ -1,5 +1,6 @@
 import type { Express, Request, Response } from 'express';
 import type { ModuleContext } from '@sam/core';
+import { getLocale } from '@sam/core';
 import { randomBytes } from 'node:crypto';
 import type { DruckerOptions } from './options.js';
 import type { PrintJobInput, PrintJobRow } from './types.js';
@@ -16,6 +17,8 @@ export function registerDruckerApi(
   const { authenticated, requirePermission, adminOnly } = ctx.middleware;
   const adminRead = requirePermission(opts.permissionKey, 'read');
   const adminWrite = requirePermission(opts.permissionKey, 'write');
+  const t = (req: Request, key: string, params?: Record<string, unknown>): string =>
+    ctx.translator.t(key, getLocale(req), params);
 
   // ── Public pickup-by-token ─────────────────────────────────────
   // Anyone with the token URL (sent to the resident) can confirm.
@@ -26,11 +29,11 @@ export function registerDruckerApi(
         [req.params.token],
       );
       const job = r.rows[0];
-      if (!job) return res.status(404).json({ error: 'Not found' });
+      if (!job) return res.status(404).json({ error: t(req, 'errors.notFound') });
       res.json(job);
     } catch (err) {
       ctx.logger.error('[drucker] pickup get failed', { err: (err as Error).message });
-      res.status(500).json({ error: 'Failed' });
+      res.status(500).json({ error: t(req, 'errors.internal') });
     }
   });
 
@@ -40,7 +43,7 @@ export function registerDruckerApi(
         req.params.token,
       ]);
       const job = cur.rows[0];
-      if (!job) return res.status(404).json({ error: 'Not found' });
+      if (!job) return res.status(404).json({ error: t(req, 'errors.notFound') });
       if (job.status === 'picked_up') return res.json({ ...job, message: 'Already picked up' });
       const upd = await ctx.db.query<PrintJobRow>(
         `UPDATE print_jobs
@@ -51,7 +54,7 @@ export function registerDruckerApi(
       res.json({ ...upd.rows[0], message: 'Confirmed' });
     } catch (err) {
       ctx.logger.error('[drucker] pickup post failed', { err: (err as Error).message });
-      res.status(500).json({ error: 'Failed' });
+      res.status(500).json({ error: t(req, 'errors.internal') });
     }
   });
 
@@ -68,7 +71,7 @@ export function registerDruckerApi(
       res.json({ jobs: r.rows });
     } catch (err) {
       ctx.logger.error('[drucker] list failed', { err: (err as Error).message });
-      res.status(500).json({ error: 'Failed' });
+      res.status(500).json({ error: t(req, 'errors.internal') });
     }
   });
 
@@ -77,7 +80,7 @@ export function registerDruckerApi(
   // account rather than guess a public endpoint.
   app.post('/api/drucker/jobs', authenticated, adminWrite, async (req, res) => {
     const b = (req.body ?? {}) as Partial<PrintJobInput>;
-    if (!b.printer) return res.status(400).json({ error: 'printer required' });
+    if (!b.printer) return res.status(400).json({ error: t(req, 'errors.printerRequired') });
     const token = b.token ?? genToken();
     try {
       const r = await ctx.db.query<PrintJobRow>(
@@ -104,7 +107,7 @@ export function registerDruckerApi(
       res.status(201).json({ job: r.rows[0], pickupUrl });
     } catch (err) {
       ctx.logger.error('[drucker] create failed', { err: (err as Error).message });
-      res.status(500).json({ error: 'Failed' });
+      res.status(500).json({ error: t(req, 'errors.internal') });
     }
   });
 
@@ -115,11 +118,11 @@ export function registerDruckerApi(
         `UPDATE print_jobs SET status = 'cancelled' WHERE token = $1 AND status = 'printed' RETURNING *`,
         [req.params.token],
       );
-      if (r.rowCount === 0) return res.status(404).json({ error: 'Not found or not open' });
+      if (r.rowCount === 0) return res.status(404).json({ error: t(req, 'errors.notFoundOrOpen') });
       res.json(r.rows[0]);
     } catch (err) {
       ctx.logger.error('[drucker] cancel failed', { err: (err as Error).message });
-      res.status(500).json({ error: 'Failed' });
+      res.status(500).json({ error: t(req, 'errors.internal') });
     }
   });
 }

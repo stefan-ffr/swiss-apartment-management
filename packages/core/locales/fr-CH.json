@@ -1,0 +1,17 @@
+{
+  "errors": {
+    "unauthorized": "Authentication required.",
+    "forbidden": "You do not have permission to perform this action.",
+    "missingPermission": "Missing permission: {permission}.",
+    "adminOnly": "Admin only.",
+    "notFound": "Not found.",
+    "badRequest": "Bad request.",
+    "badId": "Invalid id.",
+    "conflict": "Conflict.",
+    "internalError": "Internal error.",
+    "serviceUnavailable": "Service unavailable.",
+    "rateLimited": "Rate limit exceeded. Try again later.",
+    "validationFailed": "Validation failed: {detail}."
+  },
+  "ok": "OK"
+}

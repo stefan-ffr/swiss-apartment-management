@@ -1,0 +1,8 @@
+{
+  "errors": {
+    "notFound": "Nicht gefunden.",
+    "notFoundOrOpen": "Nicht gefunden oder nicht offen.",
+    "printerRequired": "Drucker ist erforderlich.",
+    "internal": "Fehler."
+  }
+}

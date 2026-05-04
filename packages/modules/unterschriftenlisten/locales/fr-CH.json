@@ -1,0 +1,15 @@
+{
+  "errors": {
+    "badHash": "Invalid hash.",
+    "badParams": "Bad parameters.",
+    "badPath": "Bad path.",
+    "badVote": "Invalid vote.",
+    "noSuchSnapshot": "No such snapshot.",
+    "pdfStorageNotConfigured": "PDF storage is not configured on this server.",
+    "pdfNotFound": "PDF not found.",
+    "pdfMissingOnDisk": "PDF file is missing on disk.",
+    "snapshotFieldsRequired": "hash, stweg_nr, datum, anlass_titel and snapshot_data are required.",
+    "notFound": "Not found.",
+    "internal": "Failed."
+  }
+}

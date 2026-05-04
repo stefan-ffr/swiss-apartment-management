@@ -29,6 +29,7 @@ const mailcow: Module = {
     { key: 'mailcow', label: 'Mailcow administration', scopes: ['read', 'write'] },
   ],
   migrationsDir: resolve(here, '..', 'migrations'),
+  localesDir: resolve(here, '..', 'locales'),
   register(app, ctx) {
     const opts = parseOpts(ctx);
     registerMailcowApi(app, ctx, opts);

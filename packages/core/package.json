@@ -19,6 +19,7 @@
     "migrate": "node ./dist/cli/migrate.js"
   },
   "dependencies": {
+    "intl-messageformat": "^10.7.0",
     "express": "^4.21.0",
     "pg": "^8.13.0",
     "zod": "^3.23.8"

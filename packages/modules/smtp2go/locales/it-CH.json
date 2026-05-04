@@ -1,0 +1,12 @@
+{
+  "errors": {
+    "internal": "Failed.",
+    "webhookDisabled": "Webhook disabled: env {env} not set.",
+    "missingSignature": "Missing signature.",
+    "badSignature": "Bad signature.",
+    "badJson": "Malformed JSON body.",
+    "envelopeFieldsRequired": "messageId, recipient and from.email are required.",
+    "noHandler": "No inbound handler wired.",
+    "handlerFailed": "Handler failed."
+  }
+}

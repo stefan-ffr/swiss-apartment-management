@@ -1,0 +1,15 @@
+{
+  "errors": {
+    "badHash": "Ungültiger Hash.",
+    "badParams": "Ungültige Parameter.",
+    "badPath": "Ungültiger Pfad.",
+    "badVote": "Ungültige Stimmoption.",
+    "noSuchSnapshot": "Kein passender Snapshot gefunden.",
+    "pdfStorageNotConfigured": "PDF-Speicher ist auf diesem Server nicht konfiguriert.",
+    "pdfNotFound": "PDF nicht gefunden.",
+    "pdfMissingOnDisk": "PDF-Datei fehlt auf der Festplatte.",
+    "snapshotFieldsRequired": "hash, stweg_nr, datum, anlass_titel und snapshot_data sind erforderlich.",
+    "notFound": "Nicht gefunden.",
+    "internal": "Fehler."
+  }
+}

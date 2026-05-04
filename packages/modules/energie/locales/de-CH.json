@@ -1,0 +1,11 @@
+{
+  "errors": {
+    "ingestDisabled": "Ingest deaktiviert: Umgebungsvariable {env} nicht gesetzt.",
+    "badIngestKey": "Ungültiger Ingest-Schlüssel.",
+    "internal": "Fehler.",
+    "meterFieldsRequired": "id und label sind erforderlich.",
+    "meterExists": "Ein Zähler mit dieser id existiert bereits.",
+    "tariffFieldsRequired": "id, label, chf_per_unit und valid_from sind erforderlich.",
+    "tariffExists": "Ein Tarif mit dieser id existiert bereits."
+  }
+}

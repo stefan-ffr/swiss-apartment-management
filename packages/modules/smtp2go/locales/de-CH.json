@@ -1,0 +1,12 @@
+{
+  "errors": {
+    "internal": "Fehler.",
+    "webhookDisabled": "Webhook deaktiviert: Umgebungsvariable {env} nicht gesetzt.",
+    "missingSignature": "Signatur fehlt.",
+    "badSignature": "Ungültige Signatur.",
+    "badJson": "Ungültiger JSON-Body.",
+    "envelopeFieldsRequired": "messageId, recipient und from.email sind erforderlich.",
+    "noHandler": "Kein Inbound-Handler registriert.",
+    "handlerFailed": "Handler fehlgeschlagen."
+  }
+}

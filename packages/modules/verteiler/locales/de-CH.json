@@ -1,0 +1,18 @@
+{
+  "errors": {
+    "badStweg": "Ungültige STWEG.",
+    "badId": "Ungültige ID.",
+    "load": "Konnte nicht geladen werden.",
+    "nameAndEmailRequired": "Name und E-Mail-Adresse sind erforderlich.",
+    "emailExists": "Diese E-Mail-Adresse existiert bereits.",
+    "create": "Konnte nicht angelegt werden.",
+    "update": "Konnte nicht aktualisiert werden.",
+    "delete": "Konnte nicht gelöscht werden.",
+    "resolve": "Empfänger-Auflösung fehlgeschlagen.",
+    "notFound": "Nicht gefunden.",
+    "sendBodyRequired": "Betreff, Text und Empfängerliste sind erforderlich.",
+    "noValidRecipients": "Keine gültigen Empfänger.",
+    "rateLimited": "Zu viele Anfragen (max. {max} pro Zeitfenster).",
+    "logRead": "Log konnte nicht gelesen werden."
+  }
+}

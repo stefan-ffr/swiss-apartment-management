@@ -1,5 +1,6 @@
 import type { Express } from 'express';
 import type { ModuleContext } from '@sam/core';
+import { getLocale } from '@sam/core';
 import type { TelefonbuchOptions } from './options.js';
 
 interface DbRow {
@@ -38,7 +39,7 @@ export function registerTelefonbuchApi(
     internalRx.some((rx) => rx.test(email));
 
   const { authenticated } = ctx.middleware;
-  app.get('/api/telefonbuch', authenticated, async (_req, res) => {
+  app.get('/api/telefonbuch', authenticated, async (req, res) => {
     try {
       const { rows } = await ctx.db.query<DbRow>(`
         SELECT k.name, k.email, k.telefon, k.rolle,
@@ -97,7 +98,7 @@ export function registerTelefonbuchApi(
       res.json({ contacts: list, count: list.length });
     } catch (err) {
       ctx.logger.error('[telefonbuch] api error', { err: (err as Error).message });
-      res.status(500).json({ error: (err as Error).message });
+      res.status(500).json({ error: ctx.translator.t('errors.internal', getLocale(req)) });
     }
   });
 }

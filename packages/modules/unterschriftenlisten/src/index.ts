@@ -29,6 +29,7 @@ const unterschriftenlisten: Module = {
     { key: 'unterschriftenlisten', label: 'Signature sheets', scopes: ['read', 'write'] },
   ],
   migrationsDir: resolve(here, '..', 'migrations'),
+  localesDir: resolve(here, '..', 'locales'),
   register(app, ctx) {
     const opts = parseOpts(ctx);
     registerUnterschriftenlistenApi(app, ctx, opts);

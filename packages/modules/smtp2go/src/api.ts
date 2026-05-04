@@ -1,5 +1,6 @@
-import type { Express } from 'express';
+import type { Express, Request } from 'express';
 import type { ModuleContext } from '@sam/core';
+import { getLocale } from '@sam/core';
 import type { Smtp2goOptions } from './options.js';
 import { syncSuppressions, isSuppressed } from './suppressions.js';
 import { Smtp2goActivityClient } from './activity.js';
@@ -11,9 +12,11 @@ export function registerSmtp2goApi(
 ): void {
   const { authenticated, requirePermission, adminOnly } = ctx.middleware;
   const adminRead = requirePermission(opts.permissionKey, 'read');
+  const t = (req: Request, key: string, params?: Record<string, unknown>): string =>
+    ctx.translator.t(key, getLocale(req), params);
 
   // ── Health check ───────────────────────────────────────────────
-  app.get('/api/smtp2go/health', authenticated, adminRead, async (_req, res) => {
+  app.get('/api/smtp2go/health', authenticated, adminRead, async (req, res) => {
     if (!opts.activityApi) return res.json({ ok: true, activityApi: false });
     try {
       const client = new Smtp2goActivityClient(opts);
@@ -35,18 +38,18 @@ export function registerSmtp2goApi(
       res.json({ suppressions: r.rows });
     } catch (err) {
       ctx.logger.error('[smtp2go] suppressions read failed', { err: (err as Error).message });
-      res.status(500).json({ error: 'Failed' });
+      res.status(500).json({ error: t(req, 'errors.internal') });
     }
   });
 
   // ── Trigger a suppression sync now ─────────────────────────────
-  app.post('/api/smtp2go/suppressions/sync', authenticated, adminOnly, async (_req, res) => {
+  app.post('/api/smtp2go/suppressions/sync', authenticated, adminOnly, async (req, res) => {
     try {
       const stats = await syncSuppressions(ctx, opts);
       res.json({ ok: true, ...stats });
     } catch (err) {
       ctx.logger.error('[smtp2go] suppressions sync failed', { err: (err as Error).message });
-      res.status(500).json({ error: (err as Error).message });
+      res.status(500).json({ error: t(req, 'errors.internal') });
     }
   });
 
@@ -57,7 +60,7 @@ export function registerSmtp2goApi(
       res.json({ address: req.params.addr, suppressed });
     } catch (err) {
       ctx.logger.error('[smtp2go] suppressions check failed', { err: (err as Error).message });
-      res.status(500).json({ error: 'Failed' });
+      res.status(500).json({ error: t(req, 'errors.internal') });
     }
   });
 }

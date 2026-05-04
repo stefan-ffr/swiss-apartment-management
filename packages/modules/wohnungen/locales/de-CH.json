@@ -1,0 +1,17 @@
+{
+  "errors": {
+    "unknownStweg": "Unbekannte STWEG.",
+    "badParams": "Ungültige Parameter.",
+    "loadList": "Wohnungen konnten nicht geladen werden.",
+    "loadOne": "Wohnung konnte nicht geladen werden.",
+    "loadHistory": "Historie konnte nicht geladen werden.",
+    "archiveContact": "Kontakt konnte nicht archiviert werden.",
+    "kontaktNotFound": "Kontakt nicht gefunden oder bereits archiviert.",
+    "bezeichnungRequired": "Bezeichnung der Wohnung ist erforderlich.",
+    "bezeichnungConflict": "Eine Wohnung mit dieser Bezeichnung existiert bereits.",
+    "create": "Wohnung konnte nicht angelegt werden.",
+    "update": "Wohnung konnte nicht aktualisiert werden.",
+    "delete": "Wohnung konnte nicht gelöscht werden.",
+    "notFound": "Wohnung nicht gefunden."
+  }
+}

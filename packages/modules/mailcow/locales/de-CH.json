@@ -1,0 +1,16 @@
+{
+  "errors": {
+    "internal": "Fehler.",
+    "localPartAndNameRequired": "localPart und name sind erforderlich.",
+    "addressAndGotoRequired": "address und goto sind erforderlich.",
+    "notSamManagedOrInactive": "Nicht von SAM verwaltet oder bereits inaktiv.",
+    "notSamManaged": "Nicht von SAM verwaltet.",
+    "verteilerBridgeDisabled": "Verteiler-Bridge ist in den Modul-Optionen deaktiviert.",
+    "verteilerModuleDisabled": "Verteiler-Modul ist nicht aktiviert.",
+    "verteilerOptionsInvalid": "Verteiler-Modul-Optionen sind ungültig.",
+    "druckerBridgeDisabled": "Drucker-Bridge ist in den Modul-Optionen deaktiviert.",
+    "druckerIngestRequired": "bridges.drucker.ingestAddress ist erforderlich.",
+    "druckerModuleDisabled": "Drucker-Modul ist nicht aktiviert.",
+    "druckerOptionsInvalid": "Drucker-Modul-Optionen sind ungültig."
+  }
+}

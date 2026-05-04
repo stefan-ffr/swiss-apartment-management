@@ -26,6 +26,7 @@ const verwaltung: Module = {
     { key: 'verwaltung', label: 'External property managers', scopes: ['read', 'write'] },
   ],
   migrationsDir: resolve(here, '..', 'migrations'),
+  localesDir: resolve(here, '..', 'locales'),
 
   register(app, ctx) {
     const opts = parseOpts(ctx);

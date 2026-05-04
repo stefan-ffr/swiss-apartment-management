@@ -1,6 +1,6 @@
 import type { Express, Request } from 'express';
 import type { ModuleContext } from '@sam/core';
-import { getUser } from '@sam/core';
+import { getUser, getLocale } from '@sam/core';
 import type { WaschkuecheOptions } from './options.js';
 import type { RoomRow, ReservationRow, ReservationInput } from './types.js';
 
@@ -22,6 +22,8 @@ export function registerWaschkuecheApi(
   const { authenticated, requirePermission, adminOnly } = ctx.middleware;
   const read = requirePermission(opts.permissionKey, 'read');
   const write = requirePermission(opts.permissionKey, 'write');
+  const t = (req: Request, key: string, params?: Record<string, unknown>): string =>
+    ctx.translator.t(key, getLocale(req), params);
 
   // ── Rooms ──────────────────────────────────────────────────────
   app.get('/api/wasch/rooms', authenticated, read, async (req, res) => {
@@ -33,13 +35,13 @@ export function registerWaschkuecheApi(
       res.json({ rooms: r.rows });
     } catch (err) {
       ctx.logger.error('[waschkueche] rooms list failed', { err: (err as Error).message });
-      res.status(500).json({ error: 'Failed' });
+      res.status(500).json({ error: t(req, 'errors.internal') });
     }
   });
 
   app.post('/api/wasch/rooms', authenticated, adminOnly, async (req, res) => {
     const b = req.body as Partial<RoomRow>;
-    if (!b.name) return res.status(400).json({ error: 'name required' });
+    if (!b.name) return res.status(400).json({ error: t(req, 'errors.nameRequired') });
     try {
       const r = await ctx.db.query<RoomRow>(
         `INSERT INTO wasch_rooms (name, location, stweg_nr, energy_meter_id, door_id, active)
@@ -49,13 +51,13 @@ export function registerWaschkuecheApi(
       res.status(201).json(r.rows[0]);
     } catch (err) {
       ctx.logger.error('[waschkueche] room create failed', { err: (err as Error).message });
-      res.status(500).json({ error: 'Failed' });
+      res.status(500).json({ error: t(req, 'errors.internal') });
     }
   });
 
   app.put('/api/wasch/rooms/:id', authenticated, adminOnly, async (req, res) => {
     const id = parseId(req.params.id);
-    if (id === null) return res.status(400).json({ error: 'Bad id' });
+    if (id === null) return res.status(400).json({ error: t(req, 'errors.badId') });
     const b = req.body as Partial<RoomRow>;
     try {
       const r = await ctx.db.query<RoomRow>(
@@ -69,11 +71,11 @@ export function registerWaschkuecheApi(
           WHERE id = $7 RETURNING *`,
         [b.name ?? null, b.location ?? null, b.stweg_nr ?? null, b.energy_meter_id ?? null, b.door_id ?? null, b.active ?? null, id],
       );
-      if (r.rowCount === 0) return res.status(404).json({ error: 'Not found' });
+      if (r.rowCount === 0) return res.status(404).json({ error: t(req, 'errors.notFound') });
       res.json(r.rows[0]);
     } catch (err) {
       ctx.logger.error('[waschkueche] room update failed', { err: (err as Error).message });
-      res.status(500).json({ error: 'Failed' });
+      res.status(500).json({ error: t(req, 'errors.internal') });
     }
   });
 
@@ -94,32 +96,32 @@ export function registerWaschkuecheApi(
       res.json({ reservations: result.rows });
     } catch (err) {
       ctx.logger.error('[waschkueche] reservations list failed', { err: (err as Error).message });
-      res.status(500).json({ error: 'Failed' });
+      res.status(500).json({ error: t(req, 'errors.internal') });
     }
   });
 
   app.post('/api/wasch/reservations', authenticated, write, async (req, res) => {
     const sub = userSub(req as Request);
-    if (!sub) return res.status(401).json({ error: 'Auth required' });
+    if (!sub) return res.status(401).json({ error: t(req, 'errors.authRequired') });
     const b = req.body as ReservationInput;
     if (!b.room_id || !b.start_time || !b.end_time) {
-      return res.status(400).json({ error: 'room_id + start_time + end_time required' });
+      return res.status(400).json({ error: t(req, 'errors.reservationFieldsRequired') });
     }
     const start = new Date(b.start_time);
     const end = new Date(b.end_time);
     const now = Date.now();
     if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) {
-      return res.status(400).json({ error: 'Invalid date format (ISO 8601)' });
+      return res.status(400).json({ error: t(req, 'errors.invalidDate') });
     }
-    if (end <= start) return res.status(400).json({ error: 'end_time must be after start_time' });
+    if (end <= start) return res.status(400).json({ error: t(req, 'errors.endBeforeStart') });
     if ((end.getTime() - start.getTime()) / 60000 > opts.maxSlotMinutes) {
-      return res.status(400).json({ error: `Max slot duration: ${opts.maxSlotMinutes} min` });
+      return res.status(400).json({ error: t(req, 'errors.maxSlotMinutes', { minutes: opts.maxSlotMinutes }) });
     }
     if (start.getTime() - now > opts.maxAdvanceDays * 24 * 60 * 60 * 1000) {
-      return res.status(400).json({ error: `Max ${opts.maxAdvanceDays} days in advance` });
+      return res.status(400).json({ error: t(req, 'errors.maxAdvanceDays', { days: opts.maxAdvanceDays }) });
     }
     if (b.recurring && !opts.allowRecurring) {
-      return res.status(400).json({ error: 'Recurring reservations are disabled' });
+      return res.status(400).json({ error: t(req, 'errors.recurringDisabled') });
     }
     try {
       const conflict = await ctx.db.query(
@@ -129,7 +131,7 @@ export function registerWaschkuecheApi(
         [b.room_id, b.start_time, b.end_time],
       );
       if (conflict.rowCount && conflict.rowCount > 0) {
-        return res.status(409).json({ error: 'Slot already taken' });
+        return res.status(409).json({ error: t(req, 'errors.slotTaken') });
       }
       const r = await ctx.db.query<ReservationRow>(
         `INSERT INTO wasch_reservations
@@ -140,13 +142,13 @@ export function registerWaschkuecheApi(
       res.status(201).json(r.rows[0]);
     } catch (err) {
       ctx.logger.error('[waschkueche] reservation create failed', { err: (err as Error).message });
-      res.status(500).json({ error: 'Failed' });
+      res.status(500).json({ error: t(req, 'errors.internal') });
     }
   });
 
   app.get('/api/wasch/my/reservations', authenticated, read, async (req, res) => {
     const sub = userSub(req as Request);
-    if (!sub) return res.status(401).json({ error: 'Auth required' });
+    if (!sub) return res.status(401).json({ error: t(req, 'errors.authRequired') });
     try {
       const r = await ctx.db.query(
         `SELECT r.*, rm.name AS room_name FROM wasch_reservations r
@@ -158,33 +160,33 @@ export function registerWaschkuecheApi(
       res.json({ reservations: r.rows });
     } catch (err) {
       ctx.logger.error('[waschkueche] my-reservations failed', { err: (err as Error).message });
-      res.status(500).json({ error: 'Failed' });
+      res.status(500).json({ error: t(req, 'errors.internal') });
     }
   });
 
   app.delete('/api/wasch/reservations/:id', authenticated, write, async (req, res) => {
     const sub = userSub(req as Request);
-    if (!sub) return res.status(401).json({ error: 'Auth required' });
+    if (!sub) return res.status(401).json({ error: t(req, 'errors.authRequired') });
     const id = parseId(req.params.id);
-    if (id === null) return res.status(400).json({ error: 'Bad id' });
+    if (id === null) return res.status(400).json({ error: t(req, 'errors.badId') });
     try {
       const r = await ctx.db.query(
         `UPDATE wasch_reservations SET cancelled = TRUE
           WHERE id = $1 AND user_sub = $2 RETURNING id`,
         [id, sub],
       );
-      if (r.rowCount === 0) return res.status(404).json({ error: 'Not found or not yours' });
+      if (r.rowCount === 0) return res.status(404).json({ error: t(req, 'errors.notFoundOrYours') });
       res.json({ ok: true });
     } catch (err) {
       ctx.logger.error('[waschkueche] cancel failed', { err: (err as Error).message });
-      res.status(500).json({ error: 'Failed' });
+      res.status(500).json({ error: t(req, 'errors.internal') });
     }
   });
 
   // ── Sessions ───────────────────────────────────────────────────
   app.get('/api/wasch/my/sessions', authenticated, read, async (req, res) => {
     const sub = userSub(req as Request);
-    if (!sub) return res.status(401).json({ error: 'Auth required' });
+    if (!sub) return res.status(401).json({ error: t(req, 'errors.authRequired') });
     try {
       const r = await ctx.db.query(
         `SELECT s.*, rm.name AS room_name FROM wasch_sessions s
@@ -195,13 +197,13 @@ export function registerWaschkuecheApi(
       res.json({ sessions: r.rows });
     } catch (err) {
       ctx.logger.error('[waschkueche] my-sessions failed', { err: (err as Error).message });
-      res.status(500).json({ error: 'Failed' });
+      res.status(500).json({ error: t(req, 'errors.internal') });
     }
   });
 
   app.get('/api/wasch/my/costs', authenticated, read, async (req, res) => {
     const sub = userSub(req as Request);
-    if (!sub) return res.status(401).json({ error: 'Auth required' });
+    if (!sub) return res.status(401).json({ error: t(req, 'errors.authRequired') });
     try {
       const r = await ctx.db.query(
         `SELECT * FROM wasch_billing WHERE user_sub = $1 ORDER BY month DESC LIMIT 24`,
@@ -210,7 +212,7 @@ export function registerWaschkuecheApi(
       res.json({ billing: r.rows });
     } catch (err) {
       ctx.logger.error('[waschkueche] my-costs failed', { err: (err as Error).message });
-      res.status(500).json({ error: 'Failed' });
+      res.status(500).json({ error: t(req, 'errors.internal') });
     }
   });
 }

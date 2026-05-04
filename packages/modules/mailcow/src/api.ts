@@ -1,5 +1,6 @@
-import type { Express } from 'express';
+import type { Express, Request } from 'express';
 import type { ModuleContext } from '@sam/core';
+import { getLocale } from '@sam/core';
 import type { MailcowOptions } from './options.js';
 import { MailcowClient, MailcowError } from './client.js';
 import {
@@ -21,9 +22,11 @@ export function registerMailcowApi(
   const { authenticated, requirePermission, adminOnly } = ctx.middleware;
   const adminRead = requirePermission(opts.permissionKey, 'read');
   const adminWrite = requirePermission(opts.permissionKey, 'write');
+  const t = (req: Request, key: string, params?: Record<string, unknown>): string =>
+    ctx.translator.t(key, getLocale(req), params);
 
   // ── Health / connectivity check ────────────────────────────────
-  app.get('/api/mailcow/health', authenticated, adminRead, async (_req, res) => {
+  app.get('/api/mailcow/health', authenticated, adminRead, async (req, res) => {
     try {
       const client = new MailcowClient(opts);
       // Cheap call: list mailboxes (returns empty array if none)
@@ -36,7 +39,7 @@ export function registerMailcowApi(
   });
 
   // ── Mailbox listing (passthrough; admin only because PII) ──────
-  app.get('/api/mailcow/mailboxes', authenticated, adminRead, async (_req, res) => {
+  app.get('/api/mailcow/mailboxes', authenticated, adminRead, async (req, res) => {
     try {
       const client = new MailcowClient(opts);
       const remote = await client.listMailboxes();
@@ -52,7 +55,7 @@ export function registerMailcowApi(
       });
     } catch (err) {
       ctx.logger.error('[mailcow] list mailboxes failed', { err: (err as Error).message });
-      res.status(500).json({ error: 'Failed' });
+      res.status(500).json({ error: t(req, 'errors.internal') });
     }
   });
 
@@ -60,7 +63,7 @@ export function registerMailcowApi(
   app.post('/api/mailcow/mailboxes', authenticated, adminWrite, async (req, res) => {
     const b = req.body as Partial<ProvisionMailboxInput>;
     if (!b.localPart || !b.name) {
-      return res.status(400).json({ error: 'localPart + name required' });
+      return res.status(400).json({ error: t(req, 'errors.localPartAndNameRequired') });
     }
     try {
       const r = await provisionMailbox(ctx, opts, {
@@ -74,7 +77,7 @@ export function registerMailcowApi(
       res.status(r.created ? 201 : 200).json(r);
     } catch (err) {
       ctx.logger.error('[mailcow] provision failed', { err: (err as Error).message });
-      res.status(500).json({ error: (err as Error).message });
+      res.status(500).json({ error: t(req, 'errors.internal') });
     }
   });
 
@@ -82,16 +85,16 @@ export function registerMailcowApi(
   app.post('/api/mailcow/mailboxes/:addr/deactivate', authenticated, adminOnly, async (req, res) => {
     try {
       const ok = await deactivateMailbox(ctx, opts, req.params.addr ?? '');
-      if (!ok) return res.status(404).json({ error: 'Not SAM-managed or already inactive' });
+      if (!ok) return res.status(404).json({ error: t(req, 'errors.notSamManagedOrInactive') });
       res.json({ ok: true });
     } catch (err) {
       ctx.logger.error('[mailcow] deactivate failed', { err: (err as Error).message });
-      res.status(500).json({ error: (err as Error).message });
+      res.status(500).json({ error: t(req, 'errors.internal') });
     }
   });
 
   // ── Aliases ────────────────────────────────────────────────────
-  app.get('/api/mailcow/aliases', authenticated, adminRead, async (_req, res) => {
+  app.get('/api/mailcow/aliases', authenticated, adminRead, async (req, res) => {
     try {
       const client = new MailcowClient(opts);
       const remote = await client.listAliases();
@@ -108,7 +111,7 @@ export function registerMailcowApi(
       });
     } catch (err) {
       ctx.logger.error('[mailcow] list aliases failed', { err: (err as Error).message });
-      res.status(500).json({ error: 'Failed' });
+      res.status(500).json({ error: t(req, 'errors.internal') });
     }
   });
 
@@ -118,39 +121,39 @@ export function registerMailcowApi(
       goto?: string;
       purpose?: string;
     };
-    if (!address || !goto) return res.status(400).json({ error: 'address + goto required' });
+    if (!address || !goto) return res.status(400).json({ error: t(req, 'errors.addressAndGotoRequired') });
     try {
       const r = await ensureAlias(ctx, opts, address, goto, purpose);
       res.status(r.created ? 201 : 200).json(r);
     } catch (err) {
       ctx.logger.error('[mailcow] add alias failed', { err: (err as Error).message });
-      res.status(500).json({ error: (err as Error).message });
+      res.status(500).json({ error: t(req, 'errors.internal') });
     }
   });
 
   app.delete('/api/mailcow/aliases/:addr', authenticated, adminOnly, async (req, res) => {
     try {
       const ok = await deleteAlias(ctx, opts, req.params.addr ?? '');
-      if (!ok) return res.status(404).json({ error: 'Not SAM-managed' });
+      if (!ok) return res.status(404).json({ error: t(req, 'errors.notSamManaged') });
       res.json({ ok: true });
     } catch (err) {
       ctx.logger.error('[mailcow] delete alias failed', { err: (err as Error).message });
-      res.status(500).json({ error: (err as Error).message });
+      res.status(500).json({ error: t(req, 'errors.internal') });
     }
   });
 
   // ── Bridge: verteiler → Mailcow aliases (manual trigger) ──────
-  app.post('/api/mailcow/bridges/verteiler/sync', authenticated, adminWrite, async (_req, res) => {
+  app.post('/api/mailcow/bridges/verteiler/sync', authenticated, adminWrite, async (req, res) => {
     if (!opts.bridges.verteiler.enabled) {
-      return res.status(409).json({ error: 'verteiler bridge disabled in module options' });
+      return res.status(409).json({ error: t(req, 'errors.verteilerBridgeDisabled') });
     }
     const verteilerEntry = ctx.config.modules.verteiler;
     if (!verteilerEntry?.enabled) {
-      return res.status(409).json({ error: 'verteiler module not enabled' });
+      return res.status(409).json({ error: t(req, 'errors.verteilerModuleDisabled') });
     }
     const parsed = VerteilerOptionsSchema.safeParse(verteilerEntry.options ?? {});
     if (!parsed.success) {
-      return res.status(409).json({ error: 'verteiler module options invalid' });
+      return res.status(409).json({ error: t(req, 'errors.verteilerOptionsInvalid') });
     }
     try {
       const stats = await syncVerteilerAliases(ctx, opts, {
@@ -161,26 +164,26 @@ export function registerMailcowApi(
       res.json({ ok: true, ...stats });
     } catch (err) {
       ctx.logger.error('[mailcow] verteiler bridge failed', { err: (err as Error).message });
-      res.status(500).json({ error: (err as Error).message });
+      res.status(500).json({ error: t(req, 'errors.internal') });
     }
   });
 
   // ── Bridge: drucker → Mailcow aliases (manual trigger) ────────
-  app.post('/api/mailcow/bridges/drucker/sync', authenticated, adminWrite, async (_req, res) => {
+  app.post('/api/mailcow/bridges/drucker/sync', authenticated, adminWrite, async (req, res) => {
     if (!opts.bridges.drucker.enabled) {
-      return res.status(409).json({ error: 'drucker bridge disabled in module options' });
+      return res.status(409).json({ error: t(req, 'errors.druckerBridgeDisabled') });
     }
     const ingest = opts.bridges.drucker.ingestAddress;
     if (!ingest) {
-      return res.status(409).json({ error: 'bridges.drucker.ingestAddress is required' });
+      return res.status(409).json({ error: t(req, 'errors.druckerIngestRequired') });
     }
     const druckerEntry = ctx.config.modules.drucker;
     if (!druckerEntry?.enabled) {
-      return res.status(409).json({ error: 'drucker module not enabled' });
+      return res.status(409).json({ error: t(req, 'errors.druckerModuleDisabled') });
     }
     const parsed = DruckerOptionsSchema.safeParse(druckerEntry.options ?? {});
     if (!parsed.success) {
-      return res.status(409).json({ error: 'drucker module options invalid' });
+      return res.status(409).json({ error: t(req, 'errors.druckerOptionsInvalid') });
     }
     try {
       const stats = await syncDruckerAliases(ctx, opts, {
@@ -190,7 +193,7 @@ export function registerMailcowApi(
       res.json({ ok: true, ...stats });
     } catch (err) {
       ctx.logger.error('[mailcow] drucker bridge failed', { err: (err as Error).message });
-      res.status(500).json({ error: (err as Error).message });
+      res.status(500).json({ error: t(req, 'errors.internal') });
     }
   });
 }

@@ -1,0 +1,11 @@
+{
+  "errors": {
+    "ingestDisabled": "Ingest disabled: env {env} not set.",
+    "badIngestKey": "Bad ingest key.",
+    "internal": "Failed.",
+    "meterFieldsRequired": "id and label are required.",
+    "meterExists": "A meter with this id already exists.",
+    "tariffFieldsRequired": "id, label, chf_per_unit and valid_from are required.",
+    "tariffExists": "A tariff with this id already exists."
+  }
+}

@@ -1,0 +1,15 @@
+{
+  "errors": {
+    "load": "Konnte nicht geladen werden.",
+    "badId": "Ungültige ID.",
+    "notFound": "Nicht gefunden.",
+    "firmaNameRequired": "Firmenname (firma_name) ist erforderlich.",
+    "nameRequired": "Name ist erforderlich.",
+    "create": "Konnte nicht angelegt werden.",
+    "update": "Konnte nicht aktualisiert werden.",
+    "delete": "Konnte nicht gelöscht werden.",
+    "addContact": "Kontakt konnte nicht hinzugefügt werden.",
+    "updateContact": "Kontakt konnte nicht aktualisiert werden.",
+    "deleteContact": "Kontakt konnte nicht gelöscht werden."
+  }
+}

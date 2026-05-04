@@ -1,5 +1,6 @@
 import type { Express, RequestHandler } from 'express';
 import type { Pool } from 'pg';
+import type { ScopedTranslator } from './i18n.js';
 
 /**
  * The contract every module must implement.
@@ -30,6 +31,12 @@ export interface Module {
   /** Cron jobs to schedule */
   cron?: CronJob[];
 
+  /** Path to the directory holding `<locale>.json` translation files
+   *  (one per locale, e.g. `en.json`, `de-CH.json`). The registry
+   *  loads them at startup and binds a ScopedTranslator under the
+   *  module name to ctx.translator. */
+  localesDir?: string;
+
   /** Health check; should return quickly */
   healthcheck?(ctx: ModuleContext): Promise<HealthStatus>;
 }
@@ -40,14 +47,23 @@ export interface ModuleContext {
   db: Pool;
   logger: Logger;
   auth: AuthService;
+  /** Module-scoped i18n translator. Keys are looked up first under
+   *  the module's namespace, then under `common`, then under raw key. */
+  translator: ScopedTranslator;
   /** Pre-built middleware factories. Modules use these instead of
    *  rolling their own so the host can swap the AuthService. */
   middleware: {
     authenticated: RequestHandler;
     requirePermission(key: string, scope?: 'read' | 'write'): RequestHandler;
     adminOnly: RequestHandler;
+    /** Sets `req.locale` based on Accept-Language; applied automatically
+     *  by the registry as global middleware before any module routes. */
+    locale: RequestHandler;
   };
 }
+
+/** Re-exported here for ergonomics — full impl lives in i18n.ts */
+export type { ScopedTranslator, Translator, Locale, LocaleBundle } from './i18n.js';
 
 export interface PermissionDescriptor {
   key: string;

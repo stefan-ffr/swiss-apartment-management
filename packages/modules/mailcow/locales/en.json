@@ -1,0 +1,16 @@
+{
+  "errors": {
+    "internal": "Failed.",
+    "localPartAndNameRequired": "localPart and name are required.",
+    "addressAndGotoRequired": "address and goto are required.",
+    "notSamManagedOrInactive": "Not SAM-managed or already inactive.",
+    "notSamManaged": "Not SAM-managed.",
+    "verteilerBridgeDisabled": "verteiler bridge is disabled in module options.",
+    "verteilerModuleDisabled": "verteiler module is not enabled.",
+    "verteilerOptionsInvalid": "verteiler module options are invalid.",
+    "druckerBridgeDisabled": "drucker bridge is disabled in module options.",
+    "druckerIngestRequired": "bridges.drucker.ingestAddress is required.",
+    "druckerModuleDisabled": "drucker module is not enabled.",
+    "druckerOptionsInvalid": "drucker module options are invalid."
+  }
+}

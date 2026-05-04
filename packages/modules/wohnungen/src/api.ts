@@ -1,5 +1,6 @@
 import type { Express, Request, Response } from 'express';
 import type { ModuleContext } from '@sam/core';
+import { getLocale } from '@sam/core';
 import { loadWohnungMitKontakte } from './load.js';
 import { saveKontakte } from './kontakte.js';
 import type { WohnungRow, KontaktInput, BewohntVon } from './types.js';
@@ -41,6 +42,8 @@ export function registerWohnungenApi(
   const { authenticated, requirePermission } = ctx.middleware;
   const read = requirePermission(opts.permissionKey, 'read');
   const write = requirePermission(opts.permissionKey, 'write');
+  const t = (req: Request, key: string, params?: Record<string, unknown>): string =>
+    ctx.translator.t(key, getLocale(req), params);
 
   // ── List apartments for a STWEG ─────────────────────────────────
   app.get(
@@ -49,7 +52,7 @@ export function registerWohnungenApi(
     read,
     async (req: Request, res: Response) => {
       const stweg = parseStwegParam(req, ctx);
-      if (stweg === null) return res.status(400).json({ error: 'Unknown stweg' });
+      if (stweg === null) return res.status(400).json({ error: t(req, 'errors.unknownStweg') });
       try {
         const wohnungen = await ctx.db.query<WohnungRow>(
           'SELECT * FROM wohnungen WHERE stweg_nr = $1 ORDER BY bezeichnung',
@@ -76,7 +79,7 @@ export function registerWohnungenApi(
         res.json({ stweg, wohnungen: out });
       } catch (err) {
         ctx.logger.error('[wohnungen] list failed', { err: (err as Error).message });
-        res.status(500).json({ error: 'Failed to load apartments' });
+        res.status(500).json({ error: t(req, 'errors.loadList') });
       }
     },
   );
@@ -89,14 +92,14 @@ export function registerWohnungenApi(
     async (req: Request, res: Response) => {
       const stweg = parseStwegParam(req, ctx);
       const id = parseId(req.params.id);
-      if (stweg === null || id === null) return res.status(400).json({ error: 'Bad params' });
+      if (stweg === null || id === null) return res.status(400).json({ error: t(req, 'errors.badParams') });
       try {
         const w = await loadWohnungMitKontakte(ctx.db, id);
-        if (!w || w.stweg_nr !== stweg) return res.status(404).json({ error: 'Not found' });
+        if (!w || w.stweg_nr !== stweg) return res.status(404).json({ error: t(req, 'errors.notFound') });
         res.json(w);
       } catch (err) {
         ctx.logger.error('[wohnungen] get failed', { err: (err as Error).message });
-        res.status(500).json({ error: 'Failed to load apartment' });
+        res.status(500).json({ error: t(req, 'errors.loadOne') });
       }
     },
   );
@@ -110,14 +113,14 @@ export function registerWohnungenApi(
     async (req: Request, res: Response) => {
       const stweg = parseStwegParam(req, ctx);
       const id = parseId(req.params.id);
-      if (stweg === null || id === null) return res.status(400).json({ error: 'Bad params' });
+      if (stweg === null || id === null) return res.status(400).json({ error: t(req, 'errors.badParams') });
       try {
         const w = await loadWohnungMitKontakte(ctx.db, id, { onlyHistory: true });
-        if (!w || w.stweg_nr !== stweg) return res.status(404).json({ error: 'Not found' });
+        if (!w || w.stweg_nr !== stweg) return res.status(404).json({ error: t(req, 'errors.notFound') });
         res.json({ wohnung: { id: w.id, stweg_nr: w.stweg_nr, bezeichnung: w.bezeichnung }, historie: w.kontakte });
       } catch (err) {
         ctx.logger.error('[wohnungen] historie failed', { err: (err as Error).message });
-        res.status(500).json({ error: 'Failed to load history' });
+        res.status(500).json({ error: t(req, 'errors.loadHistory') });
       }
     },
   );
@@ -131,7 +134,7 @@ export function registerWohnungenApi(
       const stweg = parseStwegParam(req, ctx);
       const id = parseId(req.params.id);
       const kid = parseId(req.params.kid);
-      if (stweg === null || id === null || kid === null) return res.status(400).json({ error: 'Bad params' });
+      if (stweg === null || id === null || kid === null) return res.status(400).json({ error: t(req, 'errors.badParams') });
       try {
         const r = await ctx.db.query(
           `UPDATE wohnungen_kontakte
@@ -140,11 +143,11 @@ export function registerWohnungenApi(
           RETURNING id`,
           [kid, id],
         );
-        if (r.rowCount === 0) return res.status(404).json({ error: 'Kontakt not found or already archived' });
+        if (r.rowCount === 0) return res.status(404).json({ error: t(req, 'errors.kontaktNotFound') });
         res.json({ ok: true });
       } catch (err) {
         ctx.logger.error('[wohnungen] archive failed', { err: (err as Error).message });
-        res.status(500).json({ error: 'Failed to archive contact' });
+        res.status(500).json({ error: t(req, 'errors.archiveContact') });
       }
     },
   );
@@ -152,9 +155,9 @@ export function registerWohnungenApi(
   // ── Create ──────────────────────────────────────────────────────
   app.post('/api/wohnungen/:stweg', authenticated, write, async (req, res) => {
     const stweg = parseStwegParam(req, ctx);
-    if (stweg === null) return res.status(400).json({ error: 'Unknown stweg' });
+    if (stweg === null) return res.status(400).json({ error: t(req, 'errors.unknownStweg') });
     const body = req.body as WohnungBody;
-    if (!body.bezeichnung) return res.status(400).json({ error: 'bezeichnung is required' });
+    if (!body.bezeichnung) return res.status(400).json({ error: t(req, 'errors.bezeichnungRequired') });
 
     const client = await ctx.db.connect();
     try {
@@ -188,9 +191,9 @@ export function registerWohnungenApi(
     } catch (err) {
       await client.query('ROLLBACK');
       const e = err as Error & { code?: string };
-      if (e.code === '23505') return res.status(409).json({ error: 'bezeichnung already exists' });
+      if (e.code === '23505') return res.status(409).json({ error: t(req, 'errors.bezeichnungConflict') });
       ctx.logger.error('[wohnungen] create failed', { err: e.message });
-      res.status(500).json({ error: 'Failed to create apartment' });
+      res.status(500).json({ error: t(req, 'errors.create') });
     } finally {
       client.release();
     }
@@ -200,7 +203,7 @@ export function registerWohnungenApi(
   app.put('/api/wohnungen/:stweg/:id', authenticated, write, async (req, res) => {
     const stweg = parseStwegParam(req, ctx);
     const id = parseId(req.params.id);
-    if (stweg === null || id === null) return res.status(400).json({ error: 'Bad params' });
+    if (stweg === null || id === null) return res.status(400).json({ error: t(req, 'errors.badParams') });
     const body = req.body as WohnungBody;
 
     const client = await ctx.db.connect();
@@ -231,7 +234,7 @@ export function registerWohnungenApi(
       );
       if (upd.rowCount === 0) {
         await client.query('ROLLBACK');
-        return res.status(404).json({ error: 'Not found' });
+        return res.status(404).json({ error: t(req, 'errors.notFound') });
       }
       await saveKontakte(client, id, body.kontakte, opts);
       await client.query('COMMIT');
@@ -240,9 +243,9 @@ export function registerWohnungenApi(
     } catch (err) {
       await client.query('ROLLBACK');
       const e = err as Error & { code?: string };
-      if (e.code === '23505') return res.status(409).json({ error: 'bezeichnung already exists' });
+      if (e.code === '23505') return res.status(409).json({ error: t(req, 'errors.bezeichnungConflict') });
       ctx.logger.error('[wohnungen] update failed', { err: e.message });
-      res.status(500).json({ error: 'Failed to update apartment' });
+      res.status(500).json({ error: t(req, 'errors.update') });
     } finally {
       client.release();
     }
@@ -252,17 +255,17 @@ export function registerWohnungenApi(
   app.delete('/api/wohnungen/:stweg/:id', authenticated, write, async (req, res) => {
     const stweg = parseStwegParam(req, ctx);
     const id = parseId(req.params.id);
-    if (stweg === null || id === null) return res.status(400).json({ error: 'Bad params' });
+    if (stweg === null || id === null) return res.status(400).json({ error: t(req, 'errors.badParams') });
     try {
       const r = await ctx.db.query(
         'DELETE FROM wohnungen WHERE id = $1 AND stweg_nr = $2 RETURNING id',
         [id, stweg],
       );
-      if (r.rowCount === 0) return res.status(404).json({ error: 'Not found' });
+      if (r.rowCount === 0) return res.status(404).json({ error: t(req, 'errors.notFound') });
       res.json({ ok: true });
     } catch (err) {
       ctx.logger.error('[wohnungen] delete failed', { err: (err as Error).message });
-      res.status(500).json({ error: 'Failed to delete apartment' });
+      res.status(500).json({ error: t(req, 'errors.delete') });
     }
   });
 }

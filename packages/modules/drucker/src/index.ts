@@ -27,6 +27,7 @@ const drucker: Module = {
     { key: 'drucker', label: 'Print jobs', scopes: ['read', 'write'] },
   ],
   migrationsDir: resolve(here, '..', 'migrations'),
+  localesDir: resolve(here, '..', 'locales'),
   register(app, ctx) {
     const opts = parseOpts(ctx);
     registerDruckerApi(app, ctx, opts);
