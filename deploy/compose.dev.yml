@@ -1,0 +1,36 @@
+# Development override.
+#
+# Adds mail capture + a Sabre/DAV server, exposes ports on the host
+# for local browsing, sets LOG_LEVEL=debug.
+#
+# Usage:
+#   docker compose -f docker-compose.yml -f deploy/compose.dev.yml up --build
+
+services:
+  sam:
+    ports:
+      - "${SAM_PORT:-3000}:3000"
+    environment:
+      LOG_LEVEL: debug
+
+  mailpit:
+    image: axllent/mailpit:latest
+    restart: unless-stopped
+    ports:
+      - "${MAILPIT_UI_PORT:-8025}:8025"     # web UI
+      - "${MAILPIT_SMTP_PORT:-1025}:1025"   # SMTP submission
+    environment:
+      MP_MAX_MESSAGES: "5000"
+
+  baikal:
+    image: ckulka/baikal:nginx
+    restart: unless-stopped
+    ports:
+      - "${BAIKAL_PORT:-8800}:80"
+    volumes:
+      - sam_baikal_config:/var/www/baikal/config
+      - sam_baikal_data:/var/www/baikal/Specific
+
+volumes:
+  sam_baikal_config:
+  sam_baikal_data:

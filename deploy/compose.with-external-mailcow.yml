@@ -1,0 +1,33 @@
+# Co-deployment override: SAM joins the external `mailcow-network`
+# Docker network, so it can reach the Mailcow stack via internal DNS
+# (service name `nginx-mailcow` for HTTPS, `postfix-mailcow` for SMTP,
+# `dovecot-mailcow` for IMAP).
+#
+# Prerequisites:
+#   1) Mailcow is deployed on this host using its own docker-compose
+#      (typically /opt/mailcow-dockerized/docker-compose.yml). Mailcow
+#      creates the network `mailcow-network` automatically.
+#   2) `tenant.config.json#modules.mailcow.options.apiUrl` points at
+#      `https://nginx-mailcow:443` (or the public hostname if you
+#      prefer to traverse the proxy).
+#   3) Same for `smtp.host = postfix-mailcow` and
+#      `imap.host = dovecot-mailcow`.
+#
+# Usage:
+#   docker compose -f docker-compose.yml \
+#                  -f deploy/compose.production.yml \
+#                  -f deploy/compose.with-external-mailcow.yml \
+#                  up -d --build
+#
+# See docs/deployment-mailcow.md for the full walkthrough.
+
+services:
+  sam:
+    networks:
+      - default
+      - mailcow
+
+networks:
+  mailcow:
+    external: true
+    name: mailcowdockerized_mailcow-network

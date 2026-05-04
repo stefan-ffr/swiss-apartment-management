@@ -139,6 +139,41 @@
         "verificationPageUrl": "https://stweg.example.ch/echtheitspruefung.html"
       }
     },
+    "smtp2go": {
+      "enabled": false,
+      "options": {
+        "permissionKey": "smtp2go",
+        "smtp": {
+          "host": "mail.smtp2go.com",
+          "port": 587,
+          "secure": false,
+          "userEnv": "SMTP2GO_USER",
+          "passwordEnv": "SMTP2GO_PASSWORD",
+          "from": "noreply@example.ch"
+        },
+        "webhook": {
+          "secretEnv": "SMTP2GO_WEBHOOK_SECRET",
+          "signatureHeader": "x-sam-signature",
+          "algorithm": "sha256"
+        },
+        "imap": {
+          "host": "imap.gmail.com",
+          "port": 993,
+          "secure": true,
+          "userEnv": "GMAIL_USER",
+          "passwordEnv": "GMAIL_APP_PASSWORD",
+          "mailbox": "INBOX",
+          "tagPrefixFilter": "list",
+          "moveProcessedTo": "Processed",
+          "pollIntervalMs": 60000
+        },
+        "activityApi": {
+          "baseUrl": "https://api.smtp2go.com/v3",
+          "apiKeyEnv": "SMTP2GO_API_KEY",
+          "syncIntervalMs": 600000
+        }
+      }
+    },
     "mailcow": {
       "enabled": false,
       "options": {

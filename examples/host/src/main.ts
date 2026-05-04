@@ -22,8 +22,11 @@ import waschkueche from '@sam/module-waschkueche';
 import mailcow, {
   MailcowOptionsSchema,
   createMailcowMailer,
-  startImapPoller,
 } from '@sam/module-mailcow';
+import smtp2go, {
+  Smtp2goOptionsSchema,
+  createSmtp2goMailer,
+} from '@sam/module-smtp2go';
 
 async function main(): Promise<void> {
   await bootstrap({
@@ -37,41 +40,49 @@ async function main(): Promise<void> {
       energie,
       waschkueche,
       mailcow,
+      smtp2go,
     ],
   });
 
-  // After bootstrap finished, wire optional cross-module services.
-  // The bootstrap helper doesn't expose the parsed config, so we
-  // re-read from env/file in the few cases we need it. In a tenant's
-  // own host you'd typically inline this with the bootstrap call.
+  // After bootstrap, wire optional cross-module services.
   const { loadTenantConfig, consoleLogger } = await import('@sam/core');
   const config = await loadTenantConfig();
   const logger = consoleLogger();
 
-  // ── Verteiler: inject Mailer + GroupResolver if available ────
+  // ── Pick a mail backend ────────────────────────────────────────
+  // Mailcow takes precedence over SMTP2GO when both are enabled
+  // (typical migration path: Mailcow becomes the new default,
+  // SMTP2GO is kept as a fallback path).
+  let mailerWired = false;
   if (config.modules.mailcow?.enabled && config.modules.verteiler?.enabled) {
     const mcOpts = MailcowOptionsSchema.parse(config.modules.mailcow.options ?? {});
-    const mailer = createMailcowMailer(mcOpts);
     setVerteilerServices({
-      mailer,
-      // Default resolver: NOT IMPLEMENTED — tenants supply their own.
-      // The example throws to make the missing piece obvious.
-      resolveGroup: async (groupName: string) => {
-        throw new Error(
-          `[example-host] no GroupResolver wired; group "${groupName}" cannot be resolved. ` +
-            `Tenants must inject one (Authentik / LDAP / static map / ...).`,
-        );
-      },
+      mailer: createMailcowMailer(mcOpts),
+      resolveGroup: defaultGroupResolverStub,
     });
     logger.info('[example-host] verteiler wired with Mailcow mailer');
-
-    // ── IMAP inbound (only when mailcow has an imap section) ──
-    if (mcOpts.imap) {
-      // The host could here adapt to verteiler.processInbound() — see
-      // packages/modules/mailcow/README.md for the recommended snippet.
-      logger.info('[example-host] IMAP poller is available — wire it in your tenant host');
-    }
+    mailerWired = true;
+  } else if (config.modules.smtp2go?.enabled && config.modules.verteiler?.enabled) {
+    const sgOpts = Smtp2goOptionsSchema.parse(config.modules.smtp2go.options ?? {});
+    setVerteilerServices({
+      mailer: createSmtp2goMailer(sgOpts),
+      resolveGroup: defaultGroupResolverStub,
+    });
+    logger.info('[example-host] verteiler wired with SMTP2GO mailer');
+    mailerWired = true;
   }
+  if (!mailerWired && config.modules.verteiler?.enabled) {
+    logger.warn(
+      '[example-host] verteiler is enabled but no mail backend (mailcow/smtp2go) is — sends will fail',
+    );
+  }
+}
+
+async function defaultGroupResolverStub(groupName: string): Promise<string[]> {
+  throw new Error(
+    `[example-host] no GroupResolver wired; group "${groupName}" cannot be resolved. ` +
+      `Tenants must inject one (Authentik / LDAP / static map / ...).`,
+  );
 }
 
 main().catch((err) => {

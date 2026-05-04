@@ -18,6 +18,7 @@
     "@sam/module-drucker": "workspace:*",
     "@sam/module-energie": "workspace:*",
     "@sam/module-mailcow": "workspace:*",
+    "@sam/module-smtp2go": "workspace:*",
     "@sam/module-telefonbuch": "workspace:*",
     "@sam/module-unterschriftenlisten": "workspace:*",
     "@sam/module-verteiler": "workspace:*",

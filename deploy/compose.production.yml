@@ -1,0 +1,45 @@
+# Production hardening override.
+#
+# - restart=always (vs. unless-stopped) so the stack comes back even
+#   after explicit `docker stop`,
+# - host port binding only on 127.0.0.1 (assumes a reverse proxy
+#   like Caddy / nginx / Traefik on the same host),
+# - read-only filesystem on the SAM container,
+# - tighter resource limits,
+# - log driver caps to keep journald small.
+#
+# Usage:
+#   docker compose -f docker-compose.yml -f deploy/compose.production.yml up -d --build
+
+services:
+  postgres:
+    restart: always
+    deploy:
+      resources:
+        limits:
+          memory: 1g
+    logging:
+      driver: json-file
+      options:
+        max-size: "20m"
+        max-file: "5"
+
+  sam:
+    restart: always
+    ports:
+      - "127.0.0.1:${SAM_PORT:-3000}:3000"
+    read_only: true
+    tmpfs:
+      - /tmp:size=64m
+      - /home/sam/.cache:size=64m
+    deploy:
+      resources:
+        limits:
+          memory: 768m
+    logging:
+      driver: json-file
+      options:
+        max-size: "20m"
+        max-file: "5"
+    environment:
+      LOG_LEVEL: ${LOG_LEVEL:-info}

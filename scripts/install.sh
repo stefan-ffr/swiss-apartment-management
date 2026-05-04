@@ -1,0 +1,216 @@
+#!/usr/bin/env bash
+# Swiss Apartment Management — one-liner installer.
+#
+# Usage (interactive, recommended for first install):
+#   curl -fsSL https://raw.githubusercontent.com/stefan-ffr/swiss-apartment-management/main/scripts/install.sh | bash
+#
+# Or, the safer "review first" flow:
+#   curl -fsSL https://raw.githubusercontent.com/stefan-ffr/swiss-apartment-management/main/scripts/install.sh -o install.sh
+#   less install.sh        # read what it does
+#   bash install.sh
+#
+# Non-interactive flags:
+#   SAM_DIR=/opt/sam SAM_TENANT_ID=mystweg SAM_TENANT_NAME='My STWEG' \
+#   SAM_DOMAIN=stweg.example.ch SAM_NON_INTERACTIVE=1 \
+#   bash install.sh
+#
+# What it does:
+#   1) Verifies docker + docker compose are available.
+#   2) Picks an install directory (default /opt/sam, current user must own it).
+#   3) Clones the repo (or `git pull` if already there).
+#   4) Generates strong random secrets and writes `.env`.
+#   5) Stamps `tenant.config.json` from the example with your tenant id/name/domain.
+#   6) Brings the dev stack up (`docker compose -f docker-compose.yml -f deploy/compose.dev.yml up -d --build`).
+#   7) Waits for /healthz and prints the next-steps.
+#
+# It does NOT:
+#   - install docker for you (run your distro's docker package first),
+#   - punch firewall holes,
+#   - set up TLS / a reverse proxy (that's deployment-specific).
+
+set -euo pipefail
+
+readonly REPO_URL="${SAM_REPO_URL:-https://github.com/stefan-ffr/swiss-apartment-management.git}"
+readonly DEFAULT_DIR="/opt/sam"
+
+# ── Helpers ──────────────────────────────────────────────────────
+log()  { printf '\033[1;34m▶\033[0m %s\n' "$*"; }
+ok()   { printf '\033[1;32m✓\033[0m %s\n' "$*"; }
+warn() { printf '\033[1;33m!\033[0m %s\n' "$*" >&2; }
+err()  { printf '\033[1;31m✗\033[0m %s\n' "$*" >&2; exit 1; }
+
+prompt() {
+  local var="$1" msg="$2" default="${3:-}"
+  if [[ "${SAM_NON_INTERACTIVE:-0}" == "1" ]]; then
+    [[ -n "${!var:-}" ]] || err "$var is required in non-interactive mode"
+    return
+  fi
+  local val
+  if [[ -n "$default" ]]; then
+    read -r -p "$msg [$default]: " val
+    val="${val:-$default}"
+  else
+    read -r -p "$msg: " val
+    [[ -n "$val" ]] || err "Empty answer not allowed"
+  fi
+  printf -v "$var" '%s' "$val"
+}
+
+genpass() {
+  # 32 url-safe chars
+  tr -dc 'A-Za-z0-9_-' </dev/urandom | head -c 32
+}
+
+# ── Preflight ────────────────────────────────────────────────────
+log "Preflight checks"
+command -v docker >/dev/null 2>&1 || err "docker not found — install Docker Engine first"
+docker compose version >/dev/null 2>&1 \
+  || err "'docker compose' (v2) plugin missing — see https://docs.docker.com/compose/install/"
+command -v git >/dev/null 2>&1 || err "git not found"
+ok "docker $(docker --version | awk '{print $3}' | tr -d ',') + compose available"
+
+# ── Where to install ─────────────────────────────────────────────
+SAM_DIR="${SAM_DIR:-}"
+if [[ -z "$SAM_DIR" ]]; then
+  prompt SAM_DIR "Install directory" "$DEFAULT_DIR"
+fi
+SAM_DIR="$(realpath -m "$SAM_DIR")"
+
+if [[ "$EUID" -ne 0 && ! -w "$(dirname "$SAM_DIR")" ]]; then
+  warn "You are not root and $(dirname "$SAM_DIR") is not writable."
+  warn "Re-run with sudo, or set SAM_DIR to somewhere you own."
+  err "Aborting"
+fi
+
+mkdir -p "$SAM_DIR"
+cd "$SAM_DIR"
+
+# ── Clone / update ───────────────────────────────────────────────
+if [[ -d .git ]]; then
+  log "Updating existing checkout in $SAM_DIR"
+  git pull --ff-only
+else
+  if [[ -n "$(ls -A . 2>/dev/null)" ]]; then
+    err "$SAM_DIR is not empty and is not a git checkout — refusing to write here"
+  fi
+  log "Cloning $REPO_URL into $SAM_DIR"
+  git clone "$REPO_URL" .
+fi
+ok "Repo at $SAM_DIR @ $(git rev-parse --short HEAD)"
+
+# ── Tenant config ────────────────────────────────────────────────
+SAM_TENANT_ID="${SAM_TENANT_ID:-}"
+SAM_TENANT_NAME="${SAM_TENANT_NAME:-}"
+SAM_DOMAIN="${SAM_DOMAIN:-}"
+
+[[ -n "$SAM_TENANT_ID" ]]  || prompt SAM_TENANT_ID  "Tenant id (slug, lowercase)" "example-stweg"
+[[ -n "$SAM_TENANT_NAME" ]] || prompt SAM_TENANT_NAME "Tenant name (human-readable)" "Beispiel STWEG"
+[[ -n "$SAM_DOMAIN" ]]      || prompt SAM_DOMAIN      "Primary domain"             "example.ch"
+
+if [[ -f tenant.config.json ]]; then
+  warn "tenant.config.json already exists, leaving untouched."
+else
+  log "Stamping tenant.config.json"
+  python3 - "$SAM_TENANT_ID" "$SAM_TENANT_NAME" "$SAM_DOMAIN" <<'PY'
+import json, sys, pathlib
+src = json.loads(pathlib.Path('tenant.config.example.json').read_text())
+src['tenant']['id']     = sys.argv[1]
+src['tenant']['name']   = sys.argv[2]
+src['tenant']['domain'] = sys.argv[3]
+pathlib.Path('tenant.config.json').write_text(json.dumps(src, indent=2) + '\n')
+PY
+  ok "Wrote tenant.config.json (review and edit before going to prod)"
+fi
+
+# ── .env with strong secrets ─────────────────────────────────────
+if [[ -f .env ]]; then
+  warn ".env already exists, leaving untouched."
+else
+  log "Generating .env with random secrets"
+  cat > .env <<EOF
+# Generated by scripts/install.sh on $(date -u +%FT%TZ)
+POSTGRES_DB=sam
+POSTGRES_USER=sam
+POSTGRES_PASSWORD=$(genpass)
+
+SAM_PORT=3000
+LOG_LEVEL=info
+
+SAM_ENERGIE_INGEST_KEY=$(genpass)
+
+# Mailcow (fill in if modules.mailcow.enabled = true)
+MAILCOW_API_KEY=
+MAILCOW_SMTP_USER=
+MAILCOW_SMTP_PASSWORD=
+MAILCOW_IMAP_USER=
+MAILCOW_IMAP_PASSWORD=
+
+# SMTP2GO (fill in if modules.smtp2go.enabled = true)
+SMTP2GO_USER=
+SMTP2GO_PASSWORD=
+SMTP2GO_API_KEY=
+SMTP2GO_WEBHOOK_SECRET=$(genpass)
+GMAIL_USER=
+GMAIL_APP_PASSWORD=
+
+# CardDAV (fill in if modules.telefonbuch.options.carddav set)
+NEXTCLOUD_APP_PASSWORD=
+
+# OIDC IdP client secret (fill in for production)
+OIDC_CLIENT_SECRET=
+EOF
+  chmod 600 .env
+  ok "Wrote .env (mode 600)"
+fi
+
+# ── Bring stack up ───────────────────────────────────────────────
+log "Building and starting the dev stack"
+docker compose -f docker-compose.yml -f deploy/compose.dev.yml up -d --build
+
+# ── Wait for /healthz ────────────────────────────────────────────
+log "Waiting for SAM to become healthy"
+PORT="$(grep -E '^SAM_PORT=' .env | cut -d= -f2)"
+PORT="${PORT:-3000}"
+for i in {1..30}; do
+  if curl -fsS "http://127.0.0.1:${PORT}/healthz" >/dev/null 2>&1; then
+    ok "SAM is up at http://127.0.0.1:${PORT}/healthz"
+    break
+  fi
+  if [[ $i -eq 30 ]]; then
+    warn "SAM did not become healthy within 60s — check 'docker compose logs sam'"
+    break
+  fi
+  sleep 2
+done
+
+# ── Wrap up ──────────────────────────────────────────────────────
+cat <<EOF
+
+──────────────────────────────────────────────────────────────────
+$(printf '\033[1;32m✓\033[0m') Install finished.
+
+Next steps:
+  1. Review and edit tenant.config.json:
+       \$EDITOR $SAM_DIR/tenant.config.json
+     Especially: stwegen[], auth.{issuerUrl,clientId,clientSecret},
+     and which modules.{...}.enabled = true.
+
+  2. Reload after edits:
+       cd $SAM_DIR
+       docker compose -f docker-compose.yml -f deploy/compose.dev.yml up -d sam
+
+  3. View logs:
+       docker compose -f docker-compose.yml -f deploy/compose.dev.yml logs -f sam
+
+  4. Production move (host network 127.0.0.1 + reverse proxy):
+       docker compose -f docker-compose.yml -f deploy/compose.production.yml up -d --build
+
+  5. With Mailcow on same host: see docs/deployment-mailcow.md.
+
+URLs in dev:
+  SAM:      http://127.0.0.1:${PORT}/healthz
+  Mailpit:  http://127.0.0.1:8025  (capture-and-inspect SMTP)
+  Baikal:   http://127.0.0.1:8800  (Sabre/DAV admin)
+
+──────────────────────────────────────────────────────────────────
+EOF

@@ -1,24 +1,24 @@
-# Docker-Compose stack to run SAM end-to-end on a single host
-# (Docker Desktop, a Linux server, or inside a Proxmox LXC).
+# BASE compose file. Production-safe by itself: only SAM + Postgres.
 #
-#   $ cp tenant.config.example.json tenant.config.json   # then edit
-#   $ cp .env.example .env                               # then fill in
-#   $ docker compose up --build
+# Always combine with at least one override:
 #
-# Services:
-#   postgres    — datastore for SAM
-#   sam         — the example host (all modules enabled)
-#   mailpit     — capture-and-inspect SMTP server (no real outbound)
-#                 https://github.com/axllent/mailpit
-#                 SMTP   :1025  (sam pushes mail here in dev)
-#                 Web UI :8025  (open in browser to inspect)
-#   sabre       — minimal Sabre/DAV server for CardDAV testing
-#                 (used by @sam/module-telefonbuch sync)
-#                 https://hub.docker.com/r/baikal/baikal
+#   Development (mail capture + Sabre/DAV):
+#     docker compose -f docker-compose.yml -f deploy/compose.dev.yml up --build
 #
-# In production you typically replace mailpit with mailcow (run on a
-# separate host) and sabre with Nextcloud or whichever CardDAV server
-# you already use.
+#   Production (hardening, no host ports, restart=always):
+#     docker compose -f docker-compose.yml -f deploy/compose.production.yml up -d --build
+#
+#   Production with externally-deployed Mailcow on the same host:
+#     docker compose -f docker-compose.yml \
+#                    -f deploy/compose.production.yml \
+#                    -f deploy/compose.with-external-mailcow.yml \
+#                    up -d --build
+#
+# The split keeps each lifecycle (SAM, dev fixtures, Mailcow) on its
+# own update cadence — Mailcow's monthly update.sh never touches SAM.
+#
+# See docs/installation.md and docs/deployment-mailcow.md for the full
+# decision matrix.
 
 services:
   postgres:
@@ -27,7 +27,7 @@ services:
     environment:
       POSTGRES_DB: ${POSTGRES_DB:-sam}
       POSTGRES_USER: ${POSTGRES_USER:-sam}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-sam}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD must be set}
     volumes:
       - sam_postgres_data:/var/lib/postgresql/data
     healthcheck:
@@ -36,23 +36,6 @@ services:
       timeout: 5s
       retries: 5
 
-  mailpit:
-    image: axllent/mailpit:latest
-    restart: unless-stopped
-    ports:
-      - "8025:8025"
-    environment:
-      MP_MAX_MESSAGES: "5000"
-
-  baikal:
-    image: ckulka/baikal:nginx
-    restart: unless-stopped
-    ports:
-      - "8800:80"
-    volumes:
-      - sam_baikal_config:/var/www/baikal/config
-      - sam_baikal_data:/var/www/baikal/Specific
-
   sam:
     build:
       context: .
@@ -60,32 +43,38 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
-      mailpit:
-        condition: service_started
-    ports:
-      - "${SAM_PORT:-3000}:3000"
     environment:
       TENANT_CONFIG: /etc/sam/tenant.config.json
       PORT: "3000"
       LOG_LEVEL: ${LOG_LEVEL:-info}
-      # Database
-      DB_PASSWORD: ${POSTGRES_PASSWORD:-sam}
-      # SMTP (mailpit)
-      MAILCOW_SMTP_USER: ${MAILCOW_SMTP_USER:-noreply@example.test}
-      MAILCOW_SMTP_PASSWORD: ${MAILCOW_SMTP_PASSWORD:-anything}
-      # Energy ingest shared secret
-      SAM_ENERGIE_INGEST_KEY: ${SAM_ENERGIE_INGEST_KEY:-dev-only-please-change}
-      # Mailcow API key (for the optional mailcow module — leave blank
-      # if you don't run a Mailcow server in dev)
+      DB_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD must be set}
+      # SMTP2GO (only needed when modules.smtp2go.enabled = true)
+      SMTP2GO_USER: ${SMTP2GO_USER:-}
+      SMTP2GO_PASSWORD: ${SMTP2GO_PASSWORD:-}
+      SMTP2GO_API_KEY: ${SMTP2GO_API_KEY:-}
+      SMTP2GO_WEBHOOK_SECRET: ${SMTP2GO_WEBHOOK_SECRET:-}
+      GMAIL_USER: ${GMAIL_USER:-}
+      GMAIL_APP_PASSWORD: ${GMAIL_APP_PASSWORD:-}
+      # Mailcow (only needed when modules.mailcow.enabled = true)
       MAILCOW_API_KEY: ${MAILCOW_API_KEY:-}
+      MAILCOW_SMTP_USER: ${MAILCOW_SMTP_USER:-}
+      MAILCOW_SMTP_PASSWORD: ${MAILCOW_SMTP_PASSWORD:-}
+      MAILCOW_IMAP_USER: ${MAILCOW_IMAP_USER:-}
+      MAILCOW_IMAP_PASSWORD: ${MAILCOW_IMAP_PASSWORD:-}
+      # Energy ingest shared secret
+      SAM_ENERGIE_INGEST_KEY: ${SAM_ENERGIE_INGEST_KEY:?SAM_ENERGIE_INGEST_KEY must be set}
       # CardDAV
       NEXTCLOUD_APP_PASSWORD: ${NEXTCLOUD_APP_PASSWORD:-}
-      # Authentik or any OIDC IdP (point at your dev IdP)
+      # OIDC
       OIDC_CLIENT_SECRET: ${OIDC_CLIENT_SECRET:-}
     volumes:
       - ./tenant.config.json:/etc/sam/tenant.config.json:ro
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:3000/healthz || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
 
 volumes:
   sam_postgres_data:
-  sam_baikal_config:
-  sam_baikal_data:

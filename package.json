@@ -15,11 +15,11 @@
   },
   "packageManager": "pnpm@9.15.0",
   "scripts": {
-    "build": "pnpm --filter @sam/core build && pnpm --filter @sam/module-verteiler build && pnpm --filter @sam/module-drucker build && pnpm -r --filter '!@sam/core' --filter '!@sam/module-verteiler' --filter '!@sam/module-drucker' build",
+    "build": "pnpm --filter @sam/core build && pnpm --filter @sam/module-verteiler build && pnpm --filter @sam/module-drucker build && pnpm --filter @sam/module-smtp2go build && pnpm -r --filter '!@sam/core' --filter '!@sam/module-verteiler' --filter '!@sam/module-drucker' --filter '!@sam/module-smtp2go' build",
     "dev": "pnpm --filter @sam/core dev",
     "lint": "pnpm -r lint",
     "test": "pnpm -r test",
-    "typecheck": "pnpm --filter @sam/core build && pnpm --filter @sam/module-verteiler build && pnpm --filter @sam/module-drucker build && pnpm -r typecheck",
+    "typecheck": "pnpm --filter @sam/core build && pnpm --filter @sam/module-verteiler build && pnpm --filter @sam/module-drucker build && pnpm --filter @sam/module-smtp2go build && pnpm -r typecheck",
     "migrate": "pnpm --filter @sam/core migrate"
   },
   "devDependencies": {

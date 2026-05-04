@@ -67,19 +67,29 @@ The core loads only modules listed in `tenant.config.json#modules`.
 
 ## Quick start
 
+One-liner — asks tenant id/name/domain, generates strong random
+secrets, brings the dev stack up, prints next steps:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/stefan-ffr/swiss-apartment-management/main/scripts/install.sh | bash
+```
+
+Or manually:
+
 ```bash
 git clone https://github.com/stefan-ffr/swiss-apartment-management.git
 cd swiss-apartment-management
-cp tenant.config.example.json tenant.config.json   # edit for your STWEG
-cp .env.example .env                               # fill in secrets
-docker compose up --build -d
-docker compose logs -f sam
+cp tenant.config.example.json tenant.config.json
+cp .env.example .env
+docker compose -f docker-compose.yml -f deploy/compose.dev.yml up -d --build
 ```
 
 Then open <http://localhost:3000/healthz>.
 
-For Proxmox LXC and bare-metal options see
-[docs/deployment.md](./docs/deployment.md).
+Full installation docs:
+- [docs/installation.md](./docs/installation.md) — every supported topology (Docker, Proxmox LXC + Docker, LXC bare + systemd)
+- [docs/deployment-mailcow.md](./docs/deployment-mailcow.md) — co-deploy with Mailcow on the same host
+- [deploy/README.md](./deploy/README.md) — compose overlay layout (dev / production / with-external-mailcow)
 
 ### Local development without Docker
 
@@ -102,7 +112,8 @@ pnpm --filter @sam/example-host start
 | `modules/drucker` | Per-resident print-job inbox + token pickup | ported |
 | `modules/telefonbuch` | Phonebook (REST + CardDAV sync to Sabre/DAV) | ported |
 | `modules/unterschriftenlisten` | Circular vote sheets, hash-verifiable snapshots | ported |
-| `modules/mailcow` | Optional Mailcow integration: provisioning + Mailer + IMAP poller | ported |
+| `modules/mailcow` | Optional Mailcow integration: provisioning + Mailer + IMAP poller + verteiler/drucker bridges | ported |
+| `modules/smtp2go` | Optional SMTP2GO integration: Mailer + signed-webhook inbound + Gmail-IMAP poll + suppression sync | ported |
 
 ## License
 
